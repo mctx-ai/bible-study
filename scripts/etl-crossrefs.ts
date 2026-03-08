@@ -19,7 +19,7 @@
  *   5. Resolve book names to book_id for both from and to verses
  *   6. Validate that target verses exist in the verses table; skip dangling refs
  *   7. Insert into cross_references with INSERT OR IGNORE (idempotent)
- *   8. Bulk insert via d1.batchFile (single wrangler call for all rows)
+ *   8. Bulk insert via d1Etl.batchFile (single wrangler call for all rows)
  *
  * Usage:
  *   npx tsx scripts/etl-crossrefs.ts
@@ -36,35 +36,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
 import { d1 } from '../src/lib/cloudflare.js';
-
-// ---------------------------------------------------------------------------
-// SQL building helpers (mirrors cloudflare.ts internals for direct use here)
-// ---------------------------------------------------------------------------
-
-const ROWS_PER_INSERT = 200;
-
-function sqlLiteral(value: unknown): string {
-  if (value === null || value === undefined) return 'NULL';
-  if (typeof value === 'boolean') return value ? '1' : '0';
-  if (typeof value === 'number') return String(value);
-  return `'${String(value).replace(/'/g, "''")}'`;
-}
-
-/**
- * Builds a single multi-row INSERT SQL string from an array of row tuples.
- * Groups rows into statements of up to ROWS_PER_INSERT rows each.
- */
-function buildMultiRowInserts(prefix: string, rows: unknown[][]): string {
-  const lines: string[] = [];
-  for (let start = 0; start < rows.length; start += ROWS_PER_INSERT) {
-    const chunk = rows.slice(start, start + ROWS_PER_INSERT);
-    const tuples = chunk
-      .map((row) => `(${row.map(sqlLiteral).join(', ')})`)
-      .join(', ');
-    lines.push(`${prefix} ${tuples};`);
-  }
-  return lines.join('\n') + '\n';
-}
+import { d1Etl, buildMultiRowInserts } from '../src/lib/cloudflare-etl.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -673,7 +645,7 @@ async function main(): Promise<void> {
   }
 
   log(`\nInserting ${rows.length.toLocaleString()} rows...`);
-  await d1.batchFile(buildMultiRowInserts(insertPrefix, rows));
+  await d1Etl.batchFile(buildMultiRowInserts(insertPrefix, rows));
 
   // Step 6: Verify final count
   log('Verifying final row count in cross_references...');

@@ -29,35 +29,7 @@ import './load-env.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { d1 } from '../src/lib/cloudflare.js';
-
-// ---------------------------------------------------------------------------
-// SQL building helpers (mirrors cloudflare.ts internals for direct use here)
-// ---------------------------------------------------------------------------
-
-const ROWS_PER_INSERT = 200;
-
-function sqlLiteral(value: unknown): string {
-  if (value === null || value === undefined) return 'NULL';
-  if (typeof value === 'boolean') return value ? '1' : '0';
-  if (typeof value === 'number') return String(value);
-  return `'${String(value).replace(/'/g, "''")}'`;
-}
-
-/**
- * Builds a single multi-row INSERT SQL string from an array of row tuples.
- * Groups rows into statements of up to ROWS_PER_INSERT rows each.
- */
-function buildMultiRowInserts(prefix: string, rows: unknown[][]): string {
-  const lines: string[] = [];
-  for (let start = 0; start < rows.length; start += ROWS_PER_INSERT) {
-    const chunk = rows.slice(start, start + ROWS_PER_INSERT);
-    const tuples = chunk
-      .map((row) => `(${row.map(sqlLiteral).join(', ')})`)
-      .join(', ');
-    lines.push(`${prefix} ${tuples};`);
-  }
-  return lines.join('\n') + '\n';
-}
+import { d1Etl, buildMultiRowInserts } from '../src/lib/cloudflare-etl.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -512,7 +484,7 @@ async function loadTopics(rows: NaveRow[]): Promise<Map<string, number>> {
     'INSERT OR IGNORE INTO nave_topics (id, topic_name, normalized_topic) VALUES',
     insertRows,
   );
-  await d1.batchFile(sql);
+  await d1Etl.batchFile(sql);
   log(`  Inserted ${topics.length} topic records`);
 
   // Build subject → id map (using original subject from CSV)
@@ -602,7 +574,7 @@ async function loadTopicVerses(
     'INSERT OR IGNORE INTO nave_topic_verses (topic_id, book_id, chapter, verse, note) VALUES',
     insertRows,
   );
-  await d1.batchFile(sql);
+  await d1Etl.batchFile(sql);
 
   log(`  Total refs parsed:           ${totalRefs.toLocaleString()}`);
   log(`  Verse associations inserted: ${insertRows.length.toLocaleString()}`);

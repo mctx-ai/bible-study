@@ -20,36 +20,7 @@
 import './load-env.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import { d1 } from '../src/lib/cloudflare.js';
-
-// ---------------------------------------------------------------------------
-// SQL building helpers (mirrors cloudflare.ts internals for direct use here)
-// ---------------------------------------------------------------------------
-
-const ROWS_PER_INSERT = 200;
-
-function sqlLiteral(value: unknown): string {
-  if (value === null || value === undefined) return 'NULL';
-  if (typeof value === 'boolean') return value ? '1' : '0';
-  if (typeof value === 'number') return String(value);
-  return `'${String(value).replace(/'/g, "''")}'`;
-}
-
-/**
- * Builds a single multi-row INSERT SQL string from an array of row tuples.
- * Groups rows into statements of up to ROWS_PER_INSERT rows each.
- */
-function buildMultiRowInserts(prefix: string, rows: unknown[][]): string {
-  const lines: string[] = [];
-  for (let start = 0; start < rows.length; start += ROWS_PER_INSERT) {
-    const chunk = rows.slice(start, start + ROWS_PER_INSERT);
-    const tuples = chunk
-      .map((row) => `(${row.map(sqlLiteral).join(', ')})`)
-      .join(', ');
-    lines.push(`${prefix} ${tuples};`);
-  }
-  return lines.join('\n') + '\n';
-}
+import { d1Etl, buildMultiRowInserts } from '../src/lib/cloudflare-etl.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -545,7 +516,7 @@ async function loadTranslations(): Promise<void> {
     'INSERT OR IGNORE INTO translations (id, abbreviation, name, year) VALUES',
     rows
   );
-  await d1.batchFile(sql);
+  await d1Etl.batchFile(sql);
   log(`  Inserted ${rows.length} translation records`);
 }
 
@@ -556,7 +527,7 @@ async function loadBooks(): Promise<void> {
     'INSERT OR IGNORE INTO books (id, abbreviation, name, testament, canonical_order) VALUES',
     rows
   );
-  await d1.batchFile(sql);
+  await d1Etl.batchFile(sql);
   log(`  Inserted ${rows.length} book records`);
 }
 
@@ -578,7 +549,7 @@ async function loadBookAliases(): Promise<void> {
     'INSERT OR IGNORE INTO book_aliases (alias, book_id) VALUES',
     rows
   );
-  await d1.batchFile(sql);
+  await d1Etl.batchFile(sql);
   log(`  Inserted ${rows.length} alias records`);
 }
 
@@ -628,7 +599,7 @@ async function loadVerses(
     'INSERT OR IGNORE INTO verses (book_id, chapter, verse, translation_id, text) VALUES',
     rows
   );
-  await d1.batchFile(sql);
+  await d1Etl.batchFile(sql);
 
   return rows.length;
 }

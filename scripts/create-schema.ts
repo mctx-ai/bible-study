@@ -8,9 +8,8 @@
  *   npx tsx scripts/create-schema.ts
  *   npm run db:schema
  *
- * When src/lib/cloudflare.ts is available, this script will execute statements
- * via the D1 HTTP API batch endpoint. Until then, it prints SQL to stdout for
- * manual execution.
+ * Prints all DDL statements to stdout for manual execution via the D1
+ * dashboard or wrangler CLI.
  */
 
 import './load-env.js';
@@ -224,29 +223,12 @@ function normalize(sql: string): string {
 }
 
 /**
- * Attempt to load and use the D1 HTTP API client if available.
- * Falls back to printing SQL to stdout when the client is not present.
+ * Prints SQL statements to stdout for manual execution via the D1 dashboard or wrangler CLI.
  */
 async function executeStatements(statements: string[]): Promise<void> {
-  let d1Client: { batch: (stmts: string[]) => Promise<void> } | null = null;
-
-  try {
-    // Dynamic import — resolves when src/lib/cloudflare.ts is available.
-    const mod = await import('../src/lib/cloudflare.js');
-    if (typeof mod.createD1Client === 'function') {
-      d1Client = mod.createD1Client();
-    }
-  } catch {
-    // Client not available yet — fall through to stdout mode.
-  }
-
-  if (d1Client) {
-    await d1Client.batch(statements);
-  } else {
-    console.log('-- D1 client not available. Copy and execute the following SQL manually:\n');
-    for (const stmt of statements) {
-      console.log(normalize(stmt) + ';\n');
-    }
+  console.log('-- Copy and execute the following SQL via the D1 dashboard or wrangler CLI:\n');
+  for (const stmt of statements) {
+    console.log(normalize(stmt) + ';\n');
   }
 }
 
