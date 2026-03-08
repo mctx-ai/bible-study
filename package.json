@@ -1,6 +1,6 @@
 {
   "name": "bible",
-  "version": "0.3.57",
+  "version": "0.3.58",
   "description": "Give your AI assistant deep Bible study capabilities: semantic search by meaning, side-by-side translation comparison, original Hebrew and Greek word studies with Strong's concordance, 340K+ cross-references, and topical discovery via Nave's. Covers 5 complete public domain translations (KJV, WEB, ASV, YLT, Darby). Every verse includes a structured citation. Built for MCP-compatible AI clients.",
   "homepage": "https://github.com/mctx-ai/bible-mcp-server",
   "repository": {
