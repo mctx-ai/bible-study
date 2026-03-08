@@ -137,7 +137,7 @@ const handler: ResourceHandler = async (params) => {
 };
 
 handler.description =
-  'Returns a specific Bible verse plus 2 verses before and 3 verses after for context. The requested verse is marked with requested: true. All verses include structured Citation objects.';
+  'Returns a specific Bible verse in a given translation plus 2 verses before and 3 after for reading context. The requested verse is marked requested: true in the response. Use this for direct verse lookup when you know the exact reference. Translations: KJV, WEB, ASV, YLT, Darby.';
 handler.mimeType = 'application/json';
 
 export default handler;

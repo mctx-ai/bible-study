@@ -404,7 +404,7 @@ const searchBible: ToolHandler = async (args) => {
 };
 
 searchBible.description =
-  'Search the Bible by meaning using semantic similarity. Returns ranked Bible passages that match the natural language query. Optionally filter by translation, book, or testament (OT/NT). Results include full citation (book, chapter, verse, translation) and verse text.';
+  'Search the Bible by meaning using AI semantic similarity — finds conceptually related verses even when they do not contain the query words. Use this for open-ended questions ("what does the Bible say about anxiety?") or thematic queries. Prefer topical_search for classic theological topics (faith, grace, forgiveness) where Nave\'s curated index adds value. Prefer find_text when you need an exact word or phrase match. Optionally filter by translation (KJV, WEB, ASV, YLT, Darby), book, or testament (OT/NT). Returns ranked results with full citation and verse text.';
 
 searchBible.input = {
   query: T.string({

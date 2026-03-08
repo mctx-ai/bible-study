@@ -265,10 +265,10 @@ const topicalSearch: ToolHandler = async (args) => {
 };
 
 topicalSearch.description =
-  'Discover Bible verses on a topic by combining Nave\'s curated Topical Bible index with AI semantic search. ' +
-  'Returns verses from both sources, deduplicated, with each result marked as coming from Nave\'s index, ' +
-  'semantic search, or both. Nave\'s results include editorial notes from the original index, including ' +
-  'notes indicating when a reference covers a broader chapter rather than a single verse.';
+  'Find Bible verses on a theological topic using Nave\'s curated Topical Bible index combined with AI semantic search. ' +
+  'Best for established theological topics (forgiveness, prayer, faith, love, salvation) where Nave\'s editorial curation adds depth. ' +
+  'Results are deduplicated and marked by source (naves, semantic, or both); Nave\'s results may include editorial notes. ' +
+  'For open-ended or non-standard queries, prefer search_bible instead.';
 
 topicalSearch.input = {
   topic: T.string({

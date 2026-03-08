@@ -150,13 +150,15 @@ export function validateVerseRef(
 // ─── Initialization ───────────────────────────────────────────────────────────
 
 export async function init(): Promise<void> {
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const apiToken =
+    process.env.BIBLE_API_TOKEN ?? process.env.CLOUDFLARE_API_TOKEN;
+  const accountId =
+    process.env.BIBLE_ACCOUNT_ID ?? process.env.CLOUDFLARE_ACCOUNT_ID;
   const databaseId = process.env.D1_DATABASE_ID;
 
   if (!apiToken || !accountId || !databaseId) {
     console.warn(
-      '[bible-utils] D1 env vars not set (CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, D1_DATABASE_ID). ' +
+      '[bible-utils] D1 env vars not set (BIBLE_API_TOKEN or CLOUDFLARE_API_TOKEN, BIBLE_ACCOUNT_ID or CLOUDFLARE_ACCOUNT_ID, D1_DATABASE_ID). ' +
         'Skipping cache pre-population. Bible lookups will fail at runtime.'
     );
     return;

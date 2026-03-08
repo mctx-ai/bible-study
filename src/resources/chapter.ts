@@ -100,7 +100,7 @@ const handler: ResourceHandler = async (params) => {
 };
 
 handler.description =
-  'Returns the full text of a Bible chapter with a structured Citation per verse. Book names resolve via alias so "Gen", "gen", and "Genesis" all work.';
+  'Returns every verse in a Bible chapter with a structured Citation per verse. Use this to read an entire chapter in a specific translation (KJV, WEB, ASV, YLT, Darby). Book names accept full names and common abbreviations (Gen, Matt, 1 Cor, Rev).';
 handler.mimeType = 'application/json';
 
 export default handler;

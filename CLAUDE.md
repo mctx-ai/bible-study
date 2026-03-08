@@ -133,6 +133,23 @@ Prettier configuration: `singleQuote: true` (in `.prettierrc`).
 
 This demonstrates how to read environment variables in MCP servers deployed to mctx.
 
+### Cloudflare Credentials
+
+The server reads Cloudflare credentials using a two-prefix fallback strategy:
+
+| Variable | Purpose |
+|---|---|
+| `BIBLE_ACCOUNT_ID` | mctx deployment (primary) |
+| `CLOUDFLARE_ACCOUNT_ID` | Local dev fallback |
+| `BIBLE_API_TOKEN` | mctx deployment (primary) |
+| `CLOUDFLARE_API_TOKEN` | Local dev fallback |
+
+**`BIBLE_*` prefix** — Used when the server is deployed on the mctx platform. Set these in the mctx dashboard under your server's environment configuration.
+
+**`CLOUDFLARE_*` prefix** — Used for local development. Set these in your shell or `.env` file when running `npm run dev`.
+
+The server always checks `BIBLE_*` first and falls back to `CLOUDFLARE_*`, so both environments work without changing code. The `scripts/` directory (ETL scripts that run locally) uses only `CLOUDFLARE_*` and is unaffected by this convention.
+
 ---
 
 ## Testing Patterns

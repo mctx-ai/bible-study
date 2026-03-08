@@ -31,12 +31,17 @@ fi
 # ---------------------------------------------------------------------------
 # Helper: check that required tools are available
 # ---------------------------------------------------------------------------
-for tool in wrangler jq; do
-  if ! command -v "$tool" &>/dev/null; then
-    echo "ERROR: '$tool' is required but not found in PATH." >&2
-    exit 1
-  fi
-done
+if ! command -v jq &>/dev/null; then
+  echo "ERROR: 'jq' is required but not found in PATH." >&2
+  exit 1
+fi
+
+# Use npx wrangler if wrangler is not in PATH (common when installed as devDependency)
+if command -v wrangler &>/dev/null; then
+  WRANGLER="wrangler"
+else
+  WRANGLER="npx wrangler"
+fi
 
 echo "==> Cloudflare infrastructure setup for Bible MCP server"
 echo ""
@@ -49,15 +54,20 @@ D1_DB_NAME="bible"
 echo "--- D1 Database: $D1_DB_NAME ---"
 
 # List existing D1 databases and check for a match by name.
-existing_d1=$(wrangler d1 list --json 2>/dev/null | jq -r --arg name "$D1_DB_NAME" '.[] | select(.name == $name) | .uuid')
+existing_d1=$($WRANGLER d1 list --json 2>/dev/null | jq -r --arg name "$D1_DB_NAME" '.[] | select(.name == $name) | .uuid')
 
 if [[ -n "$existing_d1" ]]; then
   echo "D1 database '$D1_DB_NAME' already exists (uuid: $existing_d1). Skipping creation."
   d1_database_id="$existing_d1"
 else
   echo "Creating D1 database '$D1_DB_NAME'..."
-  create_output=$(wrangler d1 create "$D1_DB_NAME" --json 2>/dev/null)
-  d1_database_id=$(echo "$create_output" | jq -r '.uuid')
+  create_output=$($WRANGLER d1 create "$D1_DB_NAME" 2>&1)
+  d1_database_id=$(echo "$create_output" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+  if [[ -z "$d1_database_id" ]]; then
+    echo "ERROR: Failed to parse UUID from d1 create output:" >&2
+    echo "$create_output" >&2
+    exit 1
+  fi
   echo "D1 database '$D1_DB_NAME' created (uuid: $d1_database_id)."
 fi
 
@@ -73,13 +83,13 @@ VECTORIZE_METRIC="cosine"
 echo "--- Vectorize Index: $VECTORIZE_INDEX_NAME ---"
 
 # List existing Vectorize indexes and check for a match by name.
-existing_vectorize=$(wrangler vectorize list --json 2>/dev/null | jq -r --arg name "$VECTORIZE_INDEX_NAME" '.[] | select(.name == $name) | .name')
+existing_vectorize=$($WRANGLER vectorize list --json 2>/dev/null | jq -r --arg name "$VECTORIZE_INDEX_NAME" '.[] | select(.name == $name) | .name')
 
 if [[ -n "$existing_vectorize" ]]; then
   echo "Vectorize index '$VECTORIZE_INDEX_NAME' already exists. Skipping creation."
 else
   echo "Creating Vectorize index '$VECTORIZE_INDEX_NAME' (dimensions=$VECTORIZE_DIMENSIONS, metric=$VECTORIZE_METRIC)..."
-  wrangler vectorize create "$VECTORIZE_INDEX_NAME" \
+  $WRANGLER vectorize create "$VECTORIZE_INDEX_NAME" \
     --dimensions="$VECTORIZE_DIMENSIONS" \
     --metric="$VECTORIZE_METRIC"
   echo "Vectorize index '$VECTORIZE_INDEX_NAME' created."

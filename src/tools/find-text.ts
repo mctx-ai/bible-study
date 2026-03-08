@@ -137,10 +137,11 @@ const findText: ToolHandler = async (args) => {
 };
 
 findText.description =
-  'Search Bible verses by keyword or phrase using full-text search. ' +
-  'Returns verses containing the exact phrase. ' +
-  'Optionally filter by translation (e.g. "KJV", "WEB"). ' +
-  'Results are ordered canonically (Genesis to Revelation).';
+  'Find Bible verses containing an exact word or phrase using full-text search. ' +
+  'Use this when you know the specific wording to search for (e.g. "consider the lilies", "fear not"). ' +
+  'Faster than search_bible and returns matches in canonical order (Genesis to Revelation). ' +
+  'Use concordance instead when you need all occurrences of a single word grouped by book with totals. ' +
+  'Optionally filter by translation (KJV, WEB, ASV, YLT, Darby).';
 
 findText.input = {
   query: T.string({

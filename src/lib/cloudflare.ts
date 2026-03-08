@@ -1,8 +1,10 @@
 // Cloudflare HTTP REST API client
 // Reads config from environment at module scope (nodejs_compat mode)
 
-const apiToken = process.env.CLOUDFLARE_API_TOKEN ?? '';
-const accountId = process.env.CLOUDFLARE_ACCOUNT_ID ?? '';
+const apiToken =
+  process.env.BIBLE_API_TOKEN ?? process.env.CLOUDFLARE_API_TOKEN ?? '';
+const accountId =
+  process.env.BIBLE_ACCOUNT_ID ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? '';
 const databaseId = process.env.D1_DATABASE_ID ?? '';
 const indexName = process.env.VECTORIZE_INDEX_NAME ?? '';
 
