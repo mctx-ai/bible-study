@@ -177,10 +177,10 @@ const concordance: ToolHandler = async (args) => {
 };
 
 concordance.description =
-  'Look up every occurrence of a word in the Bible, grouped by book in canonical order. ' +
-  'Returns verse text and structured citations for each match. ' +
-  'When results exceed the limit, a total_count field shows the full match count. ' +
-  'Optionally filter by translation (e.g. "KJV", "WEB").';
+  'Survey every occurrence of a word across the entire Bible, grouped by book in canonical order. ' +
+  'Use this for complete word studies (e.g. how many times does "grace" appear in each book?). ' +
+  'Unlike find_text, results are grouped by book with per-book counts; when truncated, total_count shows the full match count. ' +
+  'Optionally filter by translation (KJV, WEB, ASV, YLT, Darby). For phrase searches or faster spot checks, use find_text instead.';
 
 concordance.input = {
   word: T.string({
