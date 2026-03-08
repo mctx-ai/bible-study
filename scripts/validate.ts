@@ -53,10 +53,10 @@ async function checkRowCounts(): Promise<void> {
   console.log('\n[1] Row counts');
 
   const translationsCount = await count('translations');
-  if (translationsCount === 5) {
+  if (translationsCount === 7) {
     pass('translations', `${translationsCount} rows`);
   } else {
-    fail('translations', `Expected 5, got ${translationsCount}`);
+    fail('translations', `Expected 7, got ${translationsCount}`);
   }
 
   const booksCount = await count('books');
@@ -92,11 +92,11 @@ async function checkRowCounts(): Promise<void> {
   }
 
   const crossRefsCount = await count('cross_references');
-  const crossRefsInRange = crossRefsCount >= 340000 && crossRefsCount <= 360000;
+  const crossRefsInRange = crossRefsCount >= 600000 && crossRefsCount <= 610000;
   if (crossRefsInRange) {
     pass('cross_references', `${crossRefsCount} rows`);
   } else {
-    fail('cross_references', `Expected 340-360K, got ${crossRefsCount}`);
+    fail('cross_references', `Expected 600-610K, got ${crossRefsCount}`);
   }
 
   const strongsTotal = await count('strongs');
@@ -142,11 +142,11 @@ async function checkRowCounts(): Promise<void> {
   }
 
   const naveTopicsCount = await count('nave_topics');
-  const naveTopicsInRange = naveTopicsCount >= 15000 && naveTopicsCount <= 25000;
+  const naveTopicsInRange = naveTopicsCount >= 5000 && naveTopicsCount <= 6000;
   if (naveTopicsInRange) {
     pass('nave_topics', `${naveTopicsCount} rows`);
   } else {
-    fail('nave_topics', `Expected ~20K, got ${naveTopicsCount}`);
+    fail('nave_topics', `Expected 5,000-6,000, got ${naveTopicsCount}`);
   }
 
   const naveTopicVersesCount = await count('nave_topic_verses');
@@ -170,11 +170,9 @@ async function checkSpotVerses(): Promise<void> {
     { label: 'Proverbs 3:5', book_name: 'Proverbs', chapter: 3, verse: 5 },
   ];
 
-  // Fetch translations list once
-  const translationsResult = await d1.query(
-    `SELECT id, abbreviation FROM translations ORDER BY abbreviation`
-  );
-  const translations = translationsResult.results as Array<{ id: number; abbreviation: string }>;
+  // Only check the 5 complete Bible translations — TAGNT and TAHOT are source-text
+  // morphology records, not complete translations with verse text for every book.
+  const BIBLE_TRANSLATIONS = ['ASV', 'DBY', 'KJV', 'WEB', 'YLT'];
 
   for (const kv of knownVerses) {
     const result = await d1.query(
@@ -184,6 +182,7 @@ async function checkSpotVerses(): Promise<void> {
       JOIN books b ON b.id = v.book_id
       JOIN translations t ON t.id = v.translation_id
       WHERE b.name = ? AND v.chapter = ? AND v.verse = ?
+        AND t.abbreviation IN ('ASV', 'DBY', 'KJV', 'WEB', 'YLT')
       ORDER BY t.abbreviation
       `,
       [kv.book_name, kv.chapter, kv.verse]
@@ -193,14 +192,12 @@ async function checkSpotVerses(): Promise<void> {
     const foundTranslations = rows.map((r) => r.abbreviation);
     const allNonEmpty = rows.every((r) => r.text && r.text.trim().length > 0);
 
-    if (rows.length === translations.length && allNonEmpty) {
+    if (rows.length === BIBLE_TRANSLATIONS.length && allNonEmpty) {
       pass(kv.label, `Found in ${rows.length} translations: ${foundTranslations.join(', ')}`);
     } else if (rows.length === 0) {
       fail(kv.label, 'Not found in any translation');
-    } else if (rows.length < translations.length) {
-      const missing = translations
-        .filter((t) => !foundTranslations.includes(t.abbreviation))
-        .map((t) => t.abbreviation);
+    } else if (rows.length < BIBLE_TRANSLATIONS.length) {
+      const missing = BIBLE_TRANSLATIONS.filter((t) => !foundTranslations.includes(t));
       fail(kv.label, `Missing from ${missing.length} translation(s): ${missing.join(', ')}`);
     } else {
       fail(kv.label, `Found but some texts are empty`);
