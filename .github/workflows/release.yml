@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release:
@@ -32,12 +32,25 @@ jobs:
           OLD_HASH=$(git show origin/release:.dist-hash 2>/dev/null || echo "none")
           echo "new_hash=$NEW_HASH" >> $GITHUB_OUTPUT
           echo "old_hash=$OLD_HASH" >> $GITHUB_OUTPUT
-          if [ "$NEW_HASH" = "$OLD_HASH" ]; then
+
+          README_CHANGED=false
+          NEW_README_HASH=$(sha256sum README.md | cut -d' ' -f1)
+          OLD_README_HASH=$(git show origin/release:README.md 2>/dev/null | sha256sum | cut -d' ' -f1 || echo "none")
+          if [ "$NEW_README_HASH" != "$OLD_README_HASH" ]; then
+            README_CHANGED=true
+          fi
+
+          if [ "$NEW_HASH" = "$OLD_HASH" ] && [ "$README_CHANGED" = "false" ]; then
             echo "changed=false" >> $GITHUB_OUTPUT
-            echo "No runtime changes detected. Skipping release."
+            echo "No runtime or README changes detected. Skipping release."
           else
             echo "changed=true" >> $GITHUB_OUTPUT
-            echo "Runtime changes detected. Proceeding with release."
+            if [ "$NEW_HASH" != "$OLD_HASH" ]; then
+              echo "Runtime changes detected. Proceeding with release."
+            fi
+            if [ "$README_CHANGED" = "true" ]; then
+              echo "README.md changes detected. Proceeding with release."
+            fi
           fi
 
       - name: Determine version bump
@@ -102,6 +115,7 @@ jobs:
           # Save built artifacts BEFORE switching branches
           cp -r dist/ /tmp/dist-release/
           cp package.json /tmp/package-release.json
+          cp README.md /tmp/README-release.md
 
           # Checkout release branch
           git fetch origin release
@@ -110,6 +124,7 @@ jobs:
           # Copy artifacts back
           cp -r /tmp/dist-release/* dist/ 2>/dev/null || mkdir -p dist && cp -r /tmp/dist-release/* dist/
           cp /tmp/package-release.json package.json
+          cp /tmp/README-release.md README.md
 
           # Update package.json version
           jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp && mv package.json.tmp package.json
@@ -118,7 +133,7 @@ jobs:
           echo "$NEW_HASH" > .dist-hash
 
           # Commit and push
-          git add -f dist/ package.json .dist-hash
+          git add -f dist/ package.json .dist-hash README.md
           git commit -m "release: v${NEW_VERSION}"
           git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git"
           git push origin release
