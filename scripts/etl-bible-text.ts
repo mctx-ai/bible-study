@@ -108,33 +108,33 @@ const BOOKS: BookDef[] = [
   },
   {
     id: 9, abbreviation: '1Sam', name: '1 Samuel', testament: 'OT',
-    csvNames: ['1 Samuel', '1Samuel'],
-    aliases: ['1 Samuel', '1Samuel', '1Sam', '1sam', '1Sa', '1sa', '1 Sam', '1s'],
+    csvNames: ['1 Samuel', '1Samuel', 'I Samuel'],
+    aliases: ['1 Samuel', '1Samuel', '1Sam', '1sam', '1Sa', '1sa', '1 Sam', '1s', 'I Samuel'],
   },
   {
     id: 10, abbreviation: '2Sam', name: '2 Samuel', testament: 'OT',
-    csvNames: ['2 Samuel', '2Samuel'],
-    aliases: ['2 Samuel', '2Samuel', '2Sam', '2sam', '2Sa', '2sa', '2 Sam'],
+    csvNames: ['2 Samuel', '2Samuel', 'II Samuel'],
+    aliases: ['2 Samuel', '2Samuel', '2Sam', '2sam', '2Sa', '2sa', '2 Sam', 'II Samuel'],
   },
   {
     id: 11, abbreviation: '1Kgs', name: '1 Kings', testament: 'OT',
-    csvNames: ['1 Kings', '1Kings'],
-    aliases: ['1 Kings', '1Kings', '1Kgs', '1kgs', '1Ki', '1ki', '1Kg', '1 Kgs'],
+    csvNames: ['1 Kings', '1Kings', 'I Kings'],
+    aliases: ['1 Kings', '1Kings', '1Kgs', '1kgs', '1Ki', '1ki', '1Kg', '1 Kgs', 'I Kings'],
   },
   {
     id: 12, abbreviation: '2Kgs', name: '2 Kings', testament: 'OT',
-    csvNames: ['2 Kings', '2Kings'],
-    aliases: ['2 Kings', '2Kings', '2Kgs', '2kgs', '2Ki', '2ki', '2Kg', '2 Kgs'],
+    csvNames: ['2 Kings', '2Kings', 'II Kings'],
+    aliases: ['2 Kings', '2Kings', '2Kgs', '2kgs', '2Ki', '2ki', '2Kg', '2 Kgs', 'II Kings'],
   },
   {
     id: 13, abbreviation: '1Chr', name: '1 Chronicles', testament: 'OT',
-    csvNames: ['1 Chronicles', '1Chronicles'],
-    aliases: ['1 Chronicles', '1Chronicles', '1Chr', '1chr', '1Ch', '1ch', '1 Chr'],
+    csvNames: ['1 Chronicles', '1Chronicles', 'I Chronicles'],
+    aliases: ['1 Chronicles', '1Chronicles', '1Chr', '1chr', '1Ch', '1ch', '1 Chr', 'I Chronicles'],
   },
   {
     id: 14, abbreviation: '2Chr', name: '2 Chronicles', testament: 'OT',
-    csvNames: ['2 Chronicles', '2Chronicles'],
-    aliases: ['2 Chronicles', '2Chronicles', '2Chr', '2chr', '2Ch', '2ch', '2 Chr'],
+    csvNames: ['2 Chronicles', '2Chronicles', 'II Chronicles'],
+    aliases: ['2 Chronicles', '2Chronicles', '2Chr', '2chr', '2Ch', '2ch', '2 Chr', 'II Chronicles'],
   },
   {
     id: 15, abbreviation: 'Ezra', name: 'Ezra', testament: 'OT',
@@ -294,13 +294,13 @@ const BOOKS: BookDef[] = [
   },
   {
     id: 46, abbreviation: '1Cor', name: '1 Corinthians', testament: 'NT',
-    csvNames: ['1 Corinthians', '1Corinthians'],
-    aliases: ['1 Corinthians', '1Corinthians', '1Cor', '1cor', '1Co', '1co', '1 Cor'],
+    csvNames: ['1 Corinthians', '1Corinthians', 'I Corinthians'],
+    aliases: ['1 Corinthians', '1Corinthians', '1Cor', '1cor', '1Co', '1co', '1 Cor', 'I Corinthians'],
   },
   {
     id: 47, abbreviation: '2Cor', name: '2 Corinthians', testament: 'NT',
-    csvNames: ['2 Corinthians', '2Corinthians'],
-    aliases: ['2 Corinthians', '2Corinthians', '2Cor', '2cor', '2Co', '2co', '2 Cor'],
+    csvNames: ['2 Corinthians', '2Corinthians', 'II Corinthians'],
+    aliases: ['2 Corinthians', '2Corinthians', '2Cor', '2cor', '2Co', '2co', '2 Cor', 'II Corinthians'],
   },
   {
     id: 48, abbreviation: 'Gal', name: 'Galatians', testament: 'NT',
@@ -324,23 +324,23 @@ const BOOKS: BookDef[] = [
   },
   {
     id: 52, abbreviation: '1Thess', name: '1 Thessalonians', testament: 'NT',
-    csvNames: ['1 Thessalonians', '1Thessalonians'],
-    aliases: ['1 Thessalonians', '1Thessalonians', '1Thess', '1thess', '1Th', '1th', '1 Thess'],
+    csvNames: ['1 Thessalonians', '1Thessalonians', 'I Thessalonians'],
+    aliases: ['1 Thessalonians', '1Thessalonians', '1Thess', '1thess', '1Th', '1th', '1 Thess', 'I Thessalonians'],
   },
   {
     id: 53, abbreviation: '2Thess', name: '2 Thessalonians', testament: 'NT',
-    csvNames: ['2 Thessalonians', '2Thessalonians'],
-    aliases: ['2 Thessalonians', '2Thessalonians', '2Thess', '2thess', '2Th', '2th', '2 Thess'],
+    csvNames: ['2 Thessalonians', '2Thessalonians', 'II Thessalonians'],
+    aliases: ['2 Thessalonians', '2Thessalonians', '2Thess', '2thess', '2Th', '2th', '2 Thess', 'II Thessalonians'],
   },
   {
     id: 54, abbreviation: '1Tim', name: '1 Timothy', testament: 'NT',
-    csvNames: ['1 Timothy', '1Timothy'],
-    aliases: ['1 Timothy', '1Timothy', '1Tim', '1tim', '1Ti', '1ti', '1 Tim'],
+    csvNames: ['1 Timothy', '1Timothy', 'I Timothy'],
+    aliases: ['1 Timothy', '1Timothy', '1Tim', '1tim', '1Ti', '1ti', '1 Tim', 'I Timothy'],
   },
   {
     id: 55, abbreviation: '2Tim', name: '2 Timothy', testament: 'NT',
-    csvNames: ['2 Timothy', '2Timothy'],
-    aliases: ['2 Timothy', '2Timothy', '2Tim', '2tim', '2Ti', '2ti', '2 Tim'],
+    csvNames: ['2 Timothy', '2Timothy', 'II Timothy'],
+    aliases: ['2 Timothy', '2Timothy', '2Tim', '2tim', '2Ti', '2ti', '2 Tim', 'II Timothy'],
   },
   {
     id: 56, abbreviation: 'Titus', name: 'Titus', testament: 'NT',
@@ -364,28 +364,28 @@ const BOOKS: BookDef[] = [
   },
   {
     id: 60, abbreviation: '1Pet', name: '1 Peter', testament: 'NT',
-    csvNames: ['1 Peter', '1Peter'],
-    aliases: ['1 Peter', '1Peter', '1Pet', '1pet', '1Pe', '1pe', '1 Pet', '1Pt'],
+    csvNames: ['1 Peter', '1Peter', 'I Peter'],
+    aliases: ['1 Peter', '1Peter', '1Pet', '1pet', '1Pe', '1pe', '1 Pet', '1Pt', 'I Peter'],
   },
   {
     id: 61, abbreviation: '2Pet', name: '2 Peter', testament: 'NT',
-    csvNames: ['2 Peter', '2Peter'],
-    aliases: ['2 Peter', '2Peter', '2Pet', '2pet', '2Pe', '2pe', '2 Pet', '2Pt'],
+    csvNames: ['2 Peter', '2Peter', 'II Peter'],
+    aliases: ['2 Peter', '2Peter', '2Pet', '2pet', '2Pe', '2pe', '2 Pet', '2Pt', 'II Peter'],
   },
   {
     id: 62, abbreviation: '1John', name: '1 John', testament: 'NT',
-    csvNames: ['1 John', '1John'],
-    aliases: ['1 John', '1John', '1Jn', '1jn', '1Jo', '1jo', '1 John'],
+    csvNames: ['1 John', '1John', 'I John'],
+    aliases: ['1 John', '1John', '1Jn', '1jn', '1Jo', '1jo', '1 John', 'I John'],
   },
   {
     id: 63, abbreviation: '2John', name: '2 John', testament: 'NT',
-    csvNames: ['2 John', '2John'],
-    aliases: ['2 John', '2John', '2Jn', '2jn', '2Jo', '2jo', '2 John'],
+    csvNames: ['2 John', '2John', 'II John'],
+    aliases: ['2 John', '2John', '2Jn', '2jn', '2Jo', '2jo', '2 John', 'II John'],
   },
   {
     id: 64, abbreviation: '3John', name: '3 John', testament: 'NT',
-    csvNames: ['3 John', '3John'],
-    aliases: ['3 John', '3John', '3Jn', '3jn', '3Jo', '3jo', '3 John'],
+    csvNames: ['3 John', '3John', 'III John'],
+    aliases: ['3 John', '3John', '3Jn', '3jn', '3Jo', '3jo', '3 John', 'III John'],
   },
   {
     id: 65, abbreviation: 'Jude', name: 'Jude', testament: 'NT',
@@ -394,8 +394,8 @@ const BOOKS: BookDef[] = [
   },
   {
     id: 66, abbreviation: 'Rev', name: 'Revelation', testament: 'NT',
-    csvNames: ['Revelation'],
-    aliases: ['Revelation', 'Rev', 'rev', 'Re', 're', 'Rv', 'rv', 'Apoc'],
+    csvNames: ['Revelation', 'Revelation of John'],
+    aliases: ['Revelation', 'Rev', 'rev', 'Re', 're', 'Rv', 'rv', 'Apoc', 'Revelation of John'],
   },
 ];
 
