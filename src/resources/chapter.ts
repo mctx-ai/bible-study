@@ -100,7 +100,7 @@ const handler: ResourceHandler = async (params) => {
 };
 
 handler.description =
-  'Returns every verse in a Bible chapter with a structured Citation per verse. Use this to read an entire chapter in a specific translation (KJV, WEB, ASV, YLT, Darby). Book names accept full names and common abbreviations (Gen, Matt, 1 Cor, Rev).';
+  'Returns every verse in a Bible chapter with a structured Citation per verse. Use this to read an entire chapter in a specific translation (KJV, WEB, ASV, YLT, Darby). Book names accept full names and common abbreviations (Gen, Matt, 1 Cor, Rev). Response may be large for long chapters (e.g., Psalm 119 has 176 verses).';
 handler.mimeType = 'application/json';
 
 export default handler;

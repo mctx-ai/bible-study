@@ -151,8 +151,9 @@ const crossReferences: ToolHandler = async (args) => {
 
 crossReferences.description =
   'Find cross-references for a specific Bible verse — related passages that share themes, ' +
-  'language, or doctrinal connections. Returns the source verse and each referenced verse ' +
-  'with its text (KJV), a structured Citation, and a confidence score where available. ' +
+  'language, or doctrinal connections. Draws from 606K curated references. ' +
+  'Returns the source verse and each referenced verse with its text, a structured Citation, ' +
+  'and a confidence score where available. Referenced verse text is always returned in KJV. ' +
   'Results are ordered by confidence (highest first).';
 
 crossReferences.input = {

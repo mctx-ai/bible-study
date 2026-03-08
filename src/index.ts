@@ -37,6 +37,7 @@ import topicalSearchHandler from './tools/topical-search.js';
 
 const server = createServer({
   instructions: `Bible MCP Server — 5 public domain translations: KJV, WEB, ASV, YLT, Darby (case-insensitive). Every result includes a structured citation (book, chapter, verse, translation).
+Always cite results as 'Book Chapter:Verse (Translation)'.
 
 TOOL SELECTION GUIDE:
 • Look up a known verse → use bible://{translation}/{book}/{chapter}/{verse} resource (returns verse + context)
@@ -53,6 +54,7 @@ DISAMBIGUATION:
 - search_bible vs find_text: search_bible finds conceptually related verses; find_text requires the exact word/phrase in the text.
 - find_text vs concordance: find_text is faster for spot checks; concordance groups all occurrences by book with totals.
 - search_bible vs topical_search: topical_search combines Nave's editorial index with semantic search; prefer for classic theological topics. Use search_bible for open-ended queries.
+For deep research, chain tools: topical_search → cross_references → word_study.
 
 RESOURCES:
 • bible://translations — list all translations with abbreviation, name, year

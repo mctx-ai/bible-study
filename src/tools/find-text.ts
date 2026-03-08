@@ -137,7 +137,7 @@ const findText: ToolHandler = async (args) => {
 };
 
 findText.description =
-  'Find Bible verses containing an exact word or phrase using full-text search. ' +
+  'Find Bible verses containing an exact, case-insensitive word or phrase using full-text search. ' +
   'Use this when you know the specific wording to search for (e.g. "consider the lilies", "fear not"). ' +
   'Faster than search_bible and returns matches in canonical order (Genesis to Revelation). ' +
   'Use concordance instead when you need all occurrences of a single word grouped by book with totals. ' +

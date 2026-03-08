@@ -346,8 +346,9 @@ async function buildOtherOccurrences(
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
 wordStudy.description =
-  'Requires a known verse reference (book, chapter, verse). ' +
   'Perform an original language word study for a specific word in a Bible verse. ' +
+  'You MUST provide an exact verse reference (book, chapter, verse). Use search_bible or find_text first if you need to locate the verse. ' +
+  'The word parameter accepts position strings (e.g. "1", "2a") or an English surface form. ' +
   'Returns the Hebrew or Greek word, Strong\'s number, transliteration, definition, ' +
   'lexicon entry (BDB for Hebrew, Thayer for Greek), morphological parsing, and a ' +
   'list of other verses where the same word appears.';
