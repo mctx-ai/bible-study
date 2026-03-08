@@ -1,19 +1,56 @@
 {
-  "name": "bible-mcp-server",
-  "version": "0.3.52",
-  "description": "The Bible MCP Server.",
-  "homepage": "https://mctx.ai",
+  "name": "bible",
+  "version": "0.3.53",
+  "description": "Give your AI assistant deep Bible study capabilities: semantic search by meaning, side-by-side translation comparison, original Hebrew and Greek word studies with Strong's concordance, 340K+ cross-references, and topical discovery via Nave's. Covers 5 complete public domain translations (KJV, WEB, ASV, YLT, Darby). Every verse includes a structured citation. Built for MCP-compatible AI clients.",
+  "homepage": "https://github.com/mctx-ai/bible-mcp-server",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mctx-ai/bible-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mctx-ai/bible-mcp-server/issues"
+  },
+  "keywords": [
+    "bible",
+    "scripture",
+    "mcp",
+    "mcp-server",
+    "kjv",
+    "strongs",
+    "concordance",
+    "word-study",
+    "cross-references",
+    "theology",
+    "bible-study",
+    "hebrew",
+    "greek",
+    "naves",
+    "darby",
+    "translations"
+  ],
+  "author": "mctx-ai",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "esbuild src/index.ts --bundle --minify --platform=node --format=esm --outfile=dist/index.js",
+    "db:schema": "tsx scripts/create-schema.ts",
     "dev": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:@mctx-ai/mcp-server --sourcemap && run-p dev:build dev:server",
     "dev:build": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:@mctx-ai/mcp-server --watch --sourcemap",
     "dev:server": "mctx-dev dist/index.js",
     "test": "vitest run",
     "lint": "eslint src/",
     "format": "prettier --write src/",
-    "format:check": "prettier --check src/"
+    "format:check": "prettier --check src/",
+    "data:acquire": "tsx scripts/acquire-data.ts",
+    "etl:bible": "tsx scripts/etl-bible-text.ts",
+    "etl:morphology": "tsx scripts/etl-morphology.ts",
+    "etl:crossrefs": "tsx scripts/etl-crossrefs.ts",
+    "etl:naves": "tsx scripts/etl-naves.ts",
+    "etl:strongs": "tsx scripts/etl-strongs.ts",
+    "search:fts5": "tsx scripts/populate-fts5.ts",
+    "search:embeddings": "tsx scripts/ingest-embeddings.ts",
+    "data:validate": "tsx scripts/validate.ts",
+    "setup:infra": "bash scripts/setup-infra.sh"
   },
   "dependencies": {
     "@mctx-ai/mcp-server": "^0.6.1"
@@ -27,6 +64,7 @@
     "eslint-config-prettier": "^10.1.8",
     "npm-run-all2": "^7.0.2",
     "prettier": "^3.8.1",
+    "tsx": "^4.19.4",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.18"
