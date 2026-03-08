@@ -323,10 +323,7 @@ async function workersAiEmbed(
     `${BASE}/accounts/${accountId}/ai/run/${model}`,
     {
       method: 'POST',
-      body: JSON.stringify({
-        text: texts,
-        pooling: { strategy: 'cls' },
-      }),
+      body: JSON.stringify({ text: texts }),
     }
   );
 
