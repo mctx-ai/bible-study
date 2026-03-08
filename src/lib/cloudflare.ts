@@ -113,7 +113,17 @@ async function d1Query(
 function sqlLiteral(value: unknown): string {
   if (value === null || value === undefined) return 'NULL';
   if (typeof value === 'boolean') return value ? '1' : '0';
-  if (typeof value === 'number') return String(value);
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new TypeError(`Invalid numeric value: ${value}`);
+    }
+    return String(value);
+  }
+  if (typeof value === 'object') {
+    throw new TypeError(
+      `sqlLiteral does not accept objects; got ${Object.prototype.toString.call(value)}`
+    );
+  }
   // string (and fallback for anything else)
   return `'${String(value).replace(/'/g, "''")}'`;
 }
@@ -198,15 +208,21 @@ function buildSqlFile(
  * Replaces positional '?' placeholders in a SQL string with inlined literals.
  */
 function inlineParams(sql: string, params: unknown[]): string {
-  let idx = 0;
-  return sql.replace(/\?/g, () => {
-    if (idx >= params.length) {
+  let paramIndex = 0;
+  const result = sql.replace(/\?/g, () => {
+    if (paramIndex >= params.length) {
       throw new Error(
         `SQL has more '?' placeholders than params: ${sql}`
       );
     }
-    return sqlLiteral(params[idx++]);
+    return sqlLiteral(params[paramIndex++]);
   });
+  if (paramIndex < params.length) {
+    process.stderr.write(
+      `[cloudflare] inlineParams: ${params.length - paramIndex} extra param(s) unused for SQL: ${sql}\n`
+    );
+  }
+  return result;
 }
 
 /**
@@ -221,7 +237,7 @@ async function d1BatchFile(sql: string): Promise<void> {
   try {
     writeFileSync(tmpFile, sql, 'utf8');
     execSync(
-      `npx wrangler d1 execute ${d1DatabaseName} --remote --file=${tmpFile}`,
+      `npx wrangler d1 execute ${d1DatabaseName} --remote --file="${tmpFile}"`,
       { stdio: 'inherit' }
     );
   } finally {
@@ -318,6 +334,11 @@ async function workersAiEmbed(
   model: string = DEFAULT_EMBED_MODEL
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
+  if (texts.length > 100) {
+    throw new Error(
+      `Workers AI embed accepts at most 100 texts per request; received ${texts.length}`
+    );
+  }
 
   const result = await cfFetch<{ data: number[][] }>(
     `${BASE}/accounts/${accountId}/ai/run/${model}`,

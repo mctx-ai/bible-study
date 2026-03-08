@@ -675,7 +675,7 @@ async function main(): Promise<void> {
   log(`\nInserting ${rows.length.toLocaleString()} rows...`);
   await d1.batchFile(buildMultiRowInserts(insertPrefix, rows));
 
-  // Step 5: Verify final count
+  // Step 6: Verify final count
   log('Verifying final row count in cross_references...');
   const countResult = await d1.query(
     `SELECT COUNT(*) AS cnt FROM cross_references WHERE source = ?`,
