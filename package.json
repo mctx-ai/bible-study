@@ -54,11 +54,11 @@
     "typecheck": "tsc --noEmit && tsc --noEmit --project tsconfig.scripts.json"
   },
   "dependencies": {
-    "@mctx-ai/mcp-server": "0.8.0"
+    "@mctx-ai/mcp-server": "^1.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
-    "@mctx-ai/mcp-dev": "^0.5.8",
+    "@mctx-ai/mcp-dev": "^1.0.0",
     "@types/node": "^25.3.5",
     "esbuild": "^0.27.3",
     "eslint": "^9.17.0",
