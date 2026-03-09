@@ -1,7 +1,7 @@
 {
   "name": "bible",
-  "version": "1.0.15",
-  "description": "Deep Bible study for MCP-compatible AI clients. 155,510 verses across 5 public domain translations (KJV, WEB, ASV, YLT, Darby). Semantic search via 155K+ vector embeddings. 606,140 cross-references. 17,543 Strong's concordance entries with Hebrew and Greek lexicon definitions. 447,734 morphology records for original-language word studies. 5,319 Nave's Topical Bible categories. Full-text search via FTS5. Every verse response includes a structured citation.",
+  "version": "1.0.16",
+  "description": "Scholarly Bible study as AI-native MCP tools — semantic search across 155K verse embeddings, Strong's concordance with BDB/Thayer lexicon definitions, 606K cross-references, morphology, Nave's topical index, and translation comparison across KJV, WEB, ASV, YLT, and Darby. Chain tools together in a single AI conversation.",
   "homepage": "https://github.com/mctx-ai/bible-mcp-server",
   "repository": {
     "type": "git",

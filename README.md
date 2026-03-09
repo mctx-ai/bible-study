@@ -1,6 +1,6 @@
 # Bible MCP Server
 
-Give your AI assistant the ability to study the Bible — search by meaning, look up original Hebrew and Greek words, compare translations side by side, trace cross-references, and explore topics across the entire canon.
+A complete scholarly Bible study toolkit — semantic search, original-language word studies, translation comparison, cross-reference traversal, and topical research — available as AI-native tools for the first time. The depth that serious Bible software provides, accessible directly inside your AI assistant through natural conversation.
 
 Connect at [bible.mctx.ai](https://bible.mctx.ai) — works with any MCP-compatible AI client.
 
@@ -8,7 +8,9 @@ Connect at [bible.mctx.ai](https://bible.mctx.ai) — works with any MCP-compati
 
 ## What Makes This Different
 
-Most Bible tools offer text lookup. This server goes further: semantic search powered by 155,510 vector embeddings, full original-language analysis, 606,140 cross-references, and topical discovery via Nave's — all accessible through natural conversation with your AI assistant. No other MCP server combines all of these capabilities in one place.
+Scholarly Bible study tools have existed for decades as desktop software and websites. This server makes those capabilities available to AI for the first time via the Model Context Protocol — meaning your AI assistant can chain them together in a single conversation. Search semantically across 155,510 verses, follow a word back to its Hebrew or Greek root, pull the BDB or Thayer lexicon definition, trace 606,140 cross-references, and explore Nave's topical index — each result informing the next query, without leaving the conversation or opening a browser.
+
+The server returns structured data the AI can reason about, not HTML pages a human has to read. That distinction makes multi-step research workflows possible: find every verse about covenant in Genesis, compare how all five translations render the key Hebrew term, then pull cross-references for the most significant occurrences — in one request.
 
 ---
 
