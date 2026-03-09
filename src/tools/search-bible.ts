@@ -259,11 +259,10 @@ const searchBible: ToolHandler = async (args, _ask?) => {
   // Determine Vectorize query parameters.
   const filter = buildVectorizeFilter(bookFilter?.id, testamentFilter, translationId);
 
-  // When filtering by translation, topK = limit directly.
-  // When not filtering, overfetch to ensure enough unique locations after deduplication.
-  const topK = translationId
-    ? limit
-    : Math.min(limit * VECTORIZE_OVERFETCH_MULTIPLIER, 200);
+  // Overfetch to ensure enough candidates survive Vectorize post-filtering (metadata filters
+  // are applied after ANN retrieval, so we need extra headroom for both deduplication and
+  // translation filtering).
+  const topK = Math.min(limit * VECTORIZE_OVERFETCH_MULTIPLIER, 200);
 
   // Query Vectorize.
   const matches = await vectorize.query(queryVector, { topK, filter });
