@@ -91,7 +91,7 @@ async function searchNaves(
      JOIN translations t  ON t.id = v.translation_id
      WHERE nt.normalized_topic LIKE ? ESCAPE '\\'
      LIMIT ?`,
-    [`%${escaped}%`, ...translationParams, limit],
+    [...translationParams, `%${escaped}%`, limit],
   );
 
   const resultMap = new Map<string, TopicalResult>();
