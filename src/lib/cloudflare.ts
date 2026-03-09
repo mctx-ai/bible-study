@@ -158,7 +158,7 @@ async function vectorizeQuery(
 ): Promise<VectorizeMatch[]> {
   const { accountId, indexName } = getConfig();
   const vectorizeBase = `${BASE}/accounts/${accountId}/vectorize/v2/indexes/${indexName}`;
-  const body: Record<string, unknown> = { vector };
+  const body: Record<string, unknown> = { vector, returnMetadata: 'all' };
   if (options?.topK !== undefined) body['top_k'] = options.topK;
   if (options?.filter !== undefined) body['filter'] = options.filter;
 

@@ -77,6 +77,12 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
   //    position, not translation. We pick the first matching row.
   //    We also JOIN to verses here so that matchByEnglishSurface has the verse
   //    text available without issuing an additional round-trip query.
+  // KJV is translation_id 1. Morphology rows use translation_id 6 (Hebrew/TAHOT)
+  // or 7 (Greek/TAGNT), so we cannot join verses on m.translation_id — that
+  // would always produce NULL verse_text. Instead, join to KJV (id=1) using
+  // only the book/chapter/verse coordinates.
+  const KJV_TRANSLATION_ID = 1;
+
   const morphResult = await d1.query(
     `SELECT
        m.id,
@@ -91,10 +97,10 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
        ON v.book_id = m.book_id
        AND v.chapter = m.chapter
        AND v.verse = m.verse
-       AND v.translation_id = m.translation_id
+       AND v.translation_id = ?
      WHERE m.book_id = ? AND m.chapter = ? AND m.verse = ?
      ORDER BY m.word_position`,
-    [resolvedBook.id, chapter, verse]
+    [KJV_TRANSLATION_ID, resolvedBook.id, chapter, verse]
   );
 
   if (morphResult.results.length === 0) {
@@ -271,11 +277,15 @@ async function buildOtherOccurrences(
 ): Promise<OtherOccurrence[]> {
   if (rows.length === 0) return [];
 
+  // Morphology rows use translation_id 6 (Hebrew) or 7 (Greek). English verse
+  // text only exists for translation_id 1-5. Always query KJV (id=1) for
+  // other-occurrence verse text.
+  const KJV_TRANSLATION_ID = 1;
+
   // Build a single query with UNION ALL to fetch all needed verses at once.
   // Each row has book_id, chapter, verse. We deduplicate by verse reference.
   const seen = new Set<string>();
-  const uniqueRefs: { bookId: number; chapter: number; verse: number; translationId: number }[] =
-    [];
+  const uniqueRefs: { bookId: number; chapter: number; verse: number }[] = [];
 
   for (const row of rows) {
     const key = `${row['book_id']}.${row['chapter']}.${row['verse']}`;
@@ -285,23 +295,22 @@ async function buildOtherOccurrences(
         bookId: row['book_id'] as number,
         chapter: row['chapter'] as number,
         verse: row['verse'] as number,
-        translationId: row['translation_id'] as number,
       });
     }
   }
 
   if (uniqueRefs.length === 0) return [];
 
-  // Build WHERE clause for bulk verse fetch.
+  // Build WHERE clause for bulk verse fetch. All rows use the same KJV
+  // translation_id, so we only parameterise book/chapter/verse.
   const conditions = uniqueRefs
-    .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ? AND v.translation_id = ?)')
+    .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ?)')
     .join(' OR ');
 
   const params: unknown[] = uniqueRefs.flatMap((r) => [
     r.bookId,
     r.chapter,
     r.verse,
-    r.translationId,
   ]);
 
   const versesResult = await d1.query(
@@ -310,8 +319,8 @@ async function buildOtherOccurrences(
      FROM verses v
      JOIN books b ON b.id = v.book_id
      JOIN translations t ON t.id = v.translation_id
-     WHERE ${conditions}`,
-    params
+     WHERE v.translation_id = ? AND (${conditions})`,
+    [KJV_TRANSLATION_ID, ...params]
   );
 
   // Build a lookup map for fast access.
