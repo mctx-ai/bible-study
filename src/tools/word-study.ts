@@ -5,9 +5,12 @@
 //
 // Flow:
 //   1. Resolve book via alias resolver.
-//   2. Query morphology table for the verse.
-//   3. Match word param against word_position (coerced to string) first;
-//      fall back to matching the English surface form via the verse text.
+//   2. Query morphology table for the verse, joined with strongs definitions.
+//   3. Match word param:
+//      a. If numeric/compound-position (e.g. '1', '1a'): match morphology rows
+//         where word_position starts with the given integer prefix.
+//      b. Otherwise: match via Strong's definition gloss (case-insensitive
+//         word boundary match). No positional alignment with English verse text.
 //   4. From the matched morphology row, get strongs_number.
 //   5. Query strongs table for the Strong's entry.
 //   6. Query lexicon_entries for BDB/Thayer definition.
@@ -72,17 +75,10 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
   }
   const resolvedBook = validation.book;
 
-  // 2. Query all morphology rows for this verse (all translations).
-  //    We use translation_id-agnostic matching since morphology is keyed by
-  //    position, not translation. We pick the first matching row.
-  //    We also JOIN to verses here so that matchByEnglishSurface has the verse
-  //    text available without issuing an additional round-trip query.
-  // KJV is translation_id 1. Morphology rows use translation_id 6 (Hebrew/TAHOT)
-  // or 7 (Greek/TAGNT), so we cannot join verses on m.translation_id — that
-  // would always produce NULL verse_text. Instead, join to KJV (id=1) using
-  // only the book/chapter/verse coordinates.
-  const KJV_TRANSLATION_ID = 1;
-
+  // 2. Query all morphology rows for this verse, joined with strongs definitions.
+  //    The strongs JOIN provides English gloss/definition fields so that
+  //    matchByEnglishGloss can match without positional alignment.
+  //    Morphology rows use translation_id 6 (Hebrew/TAHOT) or 7 (Greek/TAGNT).
   const morphResult = await d1.query(
     `SELECT
        m.id,
@@ -91,16 +87,12 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
        m.lemma,
        m.parsing,
        m.translation_id,
-       v.text AS verse_text
+       s.definition AS strongs_definition
      FROM morphology m
-     LEFT JOIN verses v
-       ON v.book_id = m.book_id
-       AND v.chapter = m.chapter
-       AND v.verse = m.verse
-       AND v.translation_id = ?
+     LEFT JOIN strongs s ON s.prefixed_number = m.strongs_number
      WHERE m.book_id = ? AND m.chapter = ? AND m.verse = ?
      ORDER BY m.word_position`,
-    [KJV_TRANSLATION_ID, resolvedBook.id, chapter, verse]
+    [resolvedBook.id, chapter, verse]
   );
 
   if (morphResult.results.length === 0) {
@@ -110,18 +102,23 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
     );
   }
 
-  // 3a. Try matching word_position first (coerce param to string for comparison).
   const wordParam = String(word).trim();
-  let matchedRow = morphResult.results.find(
-    (row) => String(row['word_position']) === wordParam
-  );
 
-  // 3b. Fall back: match English surface form against verse text.
-  //    The verse text was fetched via JOIN in step 2, so we extract it from
-  //    the first morphology row — no additional query needed.
+  // 3a. Try matching by original-language word position.
+  //    Positional input: pure digits (e.g. '1', '2') or compound positions
+  //    (e.g. '1a', '2b'). An integer input of '1' should match both '1' and
+  //    compound sub-parts '1a', '1b' (all parts of the same source word).
+  let matchedRow: Record<string, unknown> | undefined;
+
+  if (/^\d+[a-z]*$/i.test(wordParam)) {
+    matchedRow = matchByPosition(wordParam, morphResult.results);
+  }
+
+  // 3b. Fall back: match English word against Strong's definition glosses.
+  //    This avoids positional alignment between English and Hebrew/Greek text
+  //    entirely — matching happens through meaning instead.
   if (!matchedRow) {
-    const verseText = morphResult.results[0]?.['verse_text'] as string | undefined;
-    matchedRow = matchByEnglishSurface(wordParam, verseText, morphResult.results);
+    matchedRow = matchByEnglishGloss(wordParam, morphResult.results);
   }
 
   if (!matchedRow) {
@@ -232,37 +229,87 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Match an English surface form against the verse text.
+ * Match by original-language word position.
  *
- * Splits verseText into words and finds the position of the matching word,
- * then looks up that position in the morphology rows.
- *
- * verseText is provided by the caller — it was retrieved via JOIN in the
- * initial morphology query, so no additional DB round-trip is needed here.
- *
- * Word positions in morphology are 1-indexed. Positions like '1a'/'1b' are
- * kept as-is (they represent subdivided tokens in the original languages).
+ * If the param is a plain integer (e.g. '2'), it matches both '2' and any
+ * compound sub-parts like '2a', '2b' — returning the first (primary) match.
+ * If the param is already a compound position (e.g. '2a'), it matches exactly.
  */
-function matchByEnglishSurface(
+function matchByPosition(
   wordParam: string,
-  verseText: string | undefined,
   morphRows: Record<string, unknown>[]
 ): Record<string, unknown> | undefined {
-  if (!verseText) return undefined;
+  const lower = wordParam.toLowerCase();
 
-  // Split on whitespace and strip punctuation for comparison.
-  const verseWords = verseText
-    .split(/\s+/)
-    .map((w) => w.replace(/[^\w'-]/g, '').toLowerCase());
+  // Exact match first (handles '1a', '2b', or plain '1' when only one row).
+  const exact = morphRows.find(
+    (row) => String(row['word_position']).toLowerCase() === lower
+  );
+  if (exact) return exact;
 
-  const targetWord = wordParam.toLowerCase();
-  const wordIndex = verseWords.findIndex((w) => w === targetWord);
+  // If plain integer, also match compound sub-parts (e.g. '1' → '1a', '1b').
+  if (/^\d+$/.test(wordParam)) {
+    return morphRows.find((row) =>
+      String(row['word_position']).toLowerCase().startsWith(lower)
+    );
+  }
 
-  if (wordIndex === -1) return undefined;
+  return undefined;
+}
 
-  // word_position is 1-indexed; match integer positions first.
-  const position = String(wordIndex + 1);
-  return morphRows.find((row) => String(row['word_position']) === position);
+/**
+ * Match an English word against the Strong's definition glosses attached to
+ * each morphology row.
+ *
+ * Each morphology row was joined with the strongs table in the initial query,
+ * providing a strongs_definition field (the English gloss). We match the
+ * user's word as a whole-word, case-insensitive substring of that gloss.
+ *
+ * Falls back to matching against the lemma field (which may contain an
+ * English gloss for rows without a Strong's entry).
+ */
+function matchByEnglishGloss(
+  wordParam: string,
+  morphRows: Record<string, unknown>[]
+): Record<string, unknown> | undefined {
+  const target = wordParam.toLowerCase();
+  // Build a word-boundary regex so 'sin' doesn't match 'since'.
+  const wordBoundaryRe = new RegExp(`\\b${escapeRegex(target)}\\b`, 'i');
+
+  // First pass: exact word-boundary match against Strong's definition gloss.
+  const glossMatch = morphRows.find((row) => {
+    const def = row['strongs_definition'];
+    if (typeof def === 'string' && def.length > 0) {
+      return wordBoundaryRe.test(def);
+    }
+    return false;
+  });
+  if (glossMatch) return glossMatch;
+
+  // Second pass: word-boundary match against lemma (may be an English gloss
+  // for rows where the original script lemma was absent during ETL).
+  const lemmaMatch = morphRows.find((row) => {
+    const lemma = row['lemma'];
+    if (typeof lemma === 'string' && lemma.length > 0) {
+      return wordBoundaryRe.test(lemma);
+    }
+    return false;
+  });
+  if (lemmaMatch) return lemmaMatch;
+
+  // Third pass: substring match against Strong's definition (broader fallback).
+  return morphRows.find((row) => {
+    const def = row['strongs_definition'];
+    if (typeof def === 'string' && def.length > 0) {
+      return def.toLowerCase().includes(target);
+    }
+    return false;
+  });
+}
+
+/** Escape special regex characters in a literal string. */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
