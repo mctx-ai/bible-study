@@ -409,6 +409,12 @@ const searchBible: ToolHandler = async (args, _ask?) => {
   return output;
 };
 
+searchBible.annotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: true,
+};
+
 searchBible.description =
   'Search the Bible by meaning using AI semantic similarity — finds conceptually related verses even when they do not contain the query words. Use this for open-ended questions ("what does the Bible say about anxiety?") or thematic queries. Prefer topical_search for classic theological topics (faith, grace, forgiveness) where Nave\'s curated index adds value. Prefer find_text when you need an exact word or phrase match. Optionally filter by translation (KJV, WEB, ASV, YLT, Darby), book, or testament (OT/NT). Without a translation filter, each verse location returns all matching translations (up to 5x results). Returns ranked results with full citation and verse text.';
 

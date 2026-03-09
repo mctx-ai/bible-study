@@ -291,6 +291,12 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
   return response;
 };
 
+topicalSearch.annotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: true,
+};
+
 topicalSearch.description =
   'Find Bible verses on a theological topic using Nave\'s curated Topical Bible index combined with AI semantic search. ' +
   'Nave\'s index covers 5,319 theological topics. ' +

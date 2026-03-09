@@ -176,6 +176,12 @@ const concordance: ToolHandler = async (args, _ask?) => {
   return response;
 };
 
+concordance.annotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: true,
+};
+
 concordance.description =
   'Survey every occurrence of a word across the entire Bible, grouped by book in canonical order. ' +
   'Searches single words only; use find_text for phrases. ' +

@@ -122,6 +122,12 @@ const compareTranslations: ToolHandler = async (args, _ask?) => {
   return response;
 };
 
+compareTranslations.annotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: true,
+};
+
 compareTranslations.description =
   'Compare the same Bible passage side-by-side across all 5 translations (KJV, WEB, ASV, YLT, Darby). ' +
   'Accepts a book name or alias, chapter, and verse range. Returns every verse with its text and a ' +

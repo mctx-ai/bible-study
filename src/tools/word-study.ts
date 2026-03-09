@@ -570,6 +570,12 @@ function buildOtherOccurrencesInline(
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
+wordStudy.annotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: true,
+};
+
 wordStudy.description =
   'Perform an original language word study for a specific word in a Bible verse. ' +
   'You MUST provide an exact verse reference (book, chapter, verse). Use search_bible or find_text first if you need to locate the verse. ' +

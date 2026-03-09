@@ -151,6 +151,12 @@ const crossReferences: ToolHandler = async (args, _ask?) => {
   return response;
 };
 
+crossReferences.annotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: true,
+};
+
 crossReferences.description =
   'Find cross-references for a specific Bible verse — related passages that share themes, ' +
   'language, or doctrinal connections. Draws from 606K curated references. ' +

@@ -152,6 +152,12 @@ const findText: ToolHandler = async (args, _ask?) => {
   return response;
 };
 
+findText.annotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: true,
+};
+
 findText.description =
   'Find Bible verses containing an exact, case-insensitive word or phrase using full-text search. ' +
   'Use this when you know the specific wording to search for (e.g. "consider the lilies", "fear not"). ' +
