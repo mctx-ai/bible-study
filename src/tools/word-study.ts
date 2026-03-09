@@ -179,14 +179,23 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
         params: [strongsNumber],
       },
       // 7. Other verses with the same strongs_number (up to 20, canonical order).
+      //    JOIN verses and books inline to return verse text and book name
+      //    in a single round-trip, eliminating the separate fetchVerseTexts call.
       {
-        sql: `SELECT DISTINCT m.book_id, m.chapter, m.verse, m.translation_id
+        sql: `SELECT DISTINCT m.book_id, m.chapter, m.verse,
+                     v.text AS verse_text,
+                     b.name AS book_name
               FROM morphology m
+              JOIN verses v ON v.book_id = m.book_id
+                           AND v.chapter  = m.chapter
+                           AND v.verse    = m.verse
+                           AND v.translation_id = ?
+              JOIN books b ON b.id = m.book_id
               WHERE m.strongs_number = ?
                 AND NOT (m.book_id = ? AND m.chapter = ? AND m.verse = ?)
               ORDER BY m.book_id, m.chapter, m.verse
               LIMIT 20`,
-        params: [strongsNumber, resolvedBook.id, chapter, verse],
+        params: [verseTranslationId, strongsNumber, resolvedBook.id, chapter, verse],
       },
       // 8. Total occurrence count (distinct verses).
       //    String concatenation with '.' as separator is safe here because
@@ -215,10 +224,9 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
   // 7 & 8. Parse other occurrences and count.
   const totalOccurrences = (countResult.results[0]?.['total'] as number) ?? 0;
 
-  // Fetch verse texts for other occurrences to build human-readable results.
-  const otherOccurrences = await buildOtherOccurrences(
+  // Build other occurrences directly from the inline JOIN result — no extra round-trip needed.
+  const otherOccurrences = buildOtherOccurrencesInline(
     otherVersesMorphResult.results,
-    verseTranslationId,
     verseTranslationAbbrev
   );
 
@@ -355,92 +363,46 @@ function escapeRegex(s: string): string {
 }
 
 /**
- * Given a list of morphology rows (with book_id, chapter, verse, translation_id),
- * fetch verse texts and build OtherOccurrence objects.
+ * Build OtherOccurrence objects directly from inline JOIN results.
  *
- * We bulk-fetch verse texts using a single query with OR conditions to avoid
- * N+1 queries (up to 20 rows).
+ * Rows already contain verse_text and book_name from the batch query JOIN,
+ * so no additional D1 round-trip is needed.
  *
- * @param translationId   The English translation ID to use for verse text (default KJV=1).
- * @param translationAbbrev  The abbreviation of that translation (used in citations).
+ * @param rows              Rows from the batch query (step 7), already joined with verses/books.
+ * @param translationAbbrev The abbreviation of the translation used (used in citations).
  */
-async function buildOtherOccurrences(
+function buildOtherOccurrencesInline(
   rows: Record<string, unknown>[],
-  translationId: number,
   translationAbbrev: string
-): Promise<OtherOccurrence[]> {
+): OtherOccurrence[] {
   if (rows.length === 0) return [];
 
-  // Build a single query with UNION ALL to fetch all needed verses at once.
-  // Each row has book_id, chapter, verse. We deduplicate by verse reference.
+  // Deduplicate by verse reference (the SQL DISTINCT covers morphology rows,
+  // but multiple morphology entries for the same verse are possible).
   const seen = new Set<string>();
-  const uniqueRefs: { bookId: number; chapter: number; verse: number }[] = [];
-
-  for (const row of rows) {
-    const key = `${row['book_id']}.${row['chapter']}.${row['verse']}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      uniqueRefs.push({
-        bookId: row['book_id'] as number,
-        chapter: row['chapter'] as number,
-        verse: row['verse'] as number,
-      });
-    }
-  }
-
-  if (uniqueRefs.length === 0) return [];
-
-  // Build WHERE clause for bulk verse fetch. All rows use the same
-  // translation_id, so we only parameterise book/chapter/verse.
-  const conditions = uniqueRefs
-    .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ?)')
-    .join(' OR ');
-
-  const params: unknown[] = uniqueRefs.flatMap((r) => [
-    r.bookId,
-    r.chapter,
-    r.verse,
-  ]);
-
-  const versesResult = await d1.query(
-    `SELECT v.book_id, v.chapter, v.verse, v.text, v.translation_id,
-            b.name AS book_name, t.abbreviation AS translation_abbrev
-     FROM verses v
-     JOIN books b ON b.id = v.book_id
-     JOIN translations t ON t.id = v.translation_id
-     WHERE v.translation_id = ? AND (${conditions})`,
-    [translationId, ...params]
-  );
-
-  // Build a lookup map for fast access.
-  const verseMap = new Map<string, Record<string, unknown>>();
-  for (const row of versesResult.results) {
-    const key = `${row['book_id']}.${row['chapter']}.${row['verse']}`;
-    if (!verseMap.has(key)) {
-      verseMap.set(key, row);
-    }
-  }
-
   const occurrences: OtherOccurrence[] = [];
 
-  for (const ref of uniqueRefs) {
-    const key = `${ref.bookId}.${ref.chapter}.${ref.verse}`;
-    const row = verseMap.get(key);
-    if (!row) continue;
+  for (const row of rows) {
+    const bookId = row['book_id'] as number;
+    const chapter = row['chapter'] as number;
+    const verse = row['verse'] as number;
+    const key = `${bookId}.${chapter}.${verse}`;
 
-    // Use the translation abbreviation from the DB response when available,
-    // falling back to the requested abbreviation for consistency.
-    const abbrev = (row['translation_abbrev'] as string | undefined) ?? translationAbbrev;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const verseText = row['verse_text'] as string | undefined;
+    if (!verseText) continue; // verse absent in this translation — skip
 
     const citation: Citation = {
       book: row['book_name'] as string,
-      chapter: ref.chapter,
-      verse: ref.verse,
-      translation: abbrev,
+      chapter,
+      verse,
+      translation: translationAbbrev,
     };
 
     occurrences.push({
-      text: row['text'] as string,
+      text: verseText,
       citation,
     });
   }
