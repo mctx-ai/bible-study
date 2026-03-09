@@ -1,6 +1,6 @@
 {
   "name": "bible",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Scholarly Bible study as AI-native MCP tools — semantic search across 155K verse embeddings, Strong's concordance with BDB/Thayer lexicon definitions, 606K cross-references, morphology, Nave's topical index, and translation comparison across KJV, WEB, ASV, YLT, and Darby. Chain tools together in a single AI conversation.",
   "homepage": "https://github.com/mctx-ai/bible-mcp-server",
   "repository": {
