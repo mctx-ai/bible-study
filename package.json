@@ -32,7 +32,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --minify --platform=node --format=esm --outfile=dist/index.js",
+    "build": "esbuild src/index.ts --bundle --minify --platform=neutral --target=es2020 --format=esm --outfile=dist/index.js",
     "db:schema": "tsx scripts/create-schema.ts",
     "dev": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:@mctx-ai/mcp-server --sourcemap && run-p dev:build dev:server",
     "dev:build": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:@mctx-ai/mcp-server --watch --sourcemap",
