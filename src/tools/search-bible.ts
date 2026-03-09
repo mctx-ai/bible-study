@@ -44,8 +44,7 @@ const VECTORIZE_OVERFETCH_MULTIPLIER = 8;
 
 function buildVectorizeFilter(
   bookId: number | undefined,
-  testament: string | undefined,
-  translationId: number | undefined
+  testament: string | undefined
 ): Record<string, string | number> | undefined {
   const filter: Record<string, string | number> = {};
 
@@ -55,10 +54,6 @@ function buildVectorizeFilter(
 
   if (testament !== undefined) {
     filter['testament'] = testament.toUpperCase();
-  }
-
-  if (translationId !== undefined) {
-    filter['translation_id'] = translationId;
   }
 
   return Object.keys(filter).length > 0 ? filter : undefined;
@@ -257,11 +252,13 @@ const searchBible: ToolHandler = async (args, _ask?) => {
   const queryVector = embeddings[0];
 
   // Determine Vectorize query parameters.
-  const filter = buildVectorizeFilter(bookFilter?.id, testamentFilter, translationId);
+  // translation_id is intentionally excluded from the Vectorize filter — Vectorize metadata
+  // post-filtering is unreliable and drops too many candidates. Instead, we apply translation
+  // filtering in application code after results are returned.
+  const filter = buildVectorizeFilter(bookFilter?.id, testamentFilter);
 
-  // Overfetch to ensure enough candidates survive Vectorize post-filtering (metadata filters
-  // are applied after ANN retrieval, so we need extra headroom for both deduplication and
-  // translation filtering).
+  // Overfetch to ensure enough candidates survive deduplication and application-side translation
+  // filtering. ANN retrieval returns candidates before any post-filtering, so we need headroom.
   const topK = Math.min(limit * VECTORIZE_OVERFETCH_MULTIPLIER, 200);
 
   // Query Vectorize.
@@ -274,7 +271,14 @@ const searchBible: ToolHandler = async (args, _ask?) => {
 
   if (translationId) {
     // Translation filter path: limit applies directly.
-    // Collect valid locations from vector matches.
+    // Post-filter matches in application code to only those belonging to the requested
+    // translation. This is more reliable than Vectorize metadata filtering, which can
+    // silently drop candidates during ANN retrieval.
+    const translationMatches = matches.filter(
+      (match) => match.metadata?.['translation_id'] === translationId
+    );
+
+    // Collect valid locations from the filtered vector matches.
     const locations: Array<{
       book_id: number;
       chapter: number;
@@ -282,7 +286,7 @@ const searchBible: ToolHandler = async (args, _ask?) => {
       score: number;
     }> = [];
 
-    for (const match of matches) {
+    for (const match of translationMatches) {
       if (!match.metadata) continue;
       const meta = parseVectorMeta(match.metadata);
       if (!meta) continue;

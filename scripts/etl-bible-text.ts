@@ -476,6 +476,9 @@ function parseCsv(csvPath: string, csvNameToBook: Map<string, BookDef>): ParsedV
       text = text.slice(1, -1).replace(/""/g, '"');
     }
 
+    // Apply uniform text cleanup (markup tags, word concatenation, whitespace)
+    text = cleanVerseText(text);
+
     const book = csvNameToBook.get(bookName);
     if (!book) {
       log(`WARN  Unknown book name "${bookName}" at line ${i + 1} — skipping`);
@@ -496,6 +499,30 @@ function parseCsv(csvPath: string, csvNameToBook: Map<string, BookDef>): ParsedV
   return verses;
 }
 
+
+// ---------------------------------------------------------------------------
+// Text cleanup
+// ---------------------------------------------------------------------------
+
+/**
+ * Clean verse text by removing markup artifacts and normalizing whitespace.
+ * Applied uniformly to all translations (no-ops for clean translations).
+ *
+ * 1. Strip YLT italic markup tags: <FI> and <Fi> (and closing variants)
+ * 2. Fix word concatenation before 'God' in Darby/ASV (e.g. 'ForGod' → 'For God')
+ * 3. Trim trailing/leading whitespace
+ */
+function cleanVerseText(text: string): string {
+  // 1. Strip YLT italic markup tags (<FI>, </FI>, <Fi>, </Fi>, case-insensitive)
+  text = text.replace(/<\/?Fi?>/gi, '');
+
+  // 2. Insert space before 'God' when immediately preceded by a lowercase letter
+  //    (fixes 'ForGod', 'AndGod', 'ofGod', 'beginningGod', etc. in Darby/ASV)
+  text = text.replace(/([a-z])(God)/g, '$1 $2');
+
+  // 3. Trim whitespace
+  return text.trim();
+}
 
 // ---------------------------------------------------------------------------
 // Logging
