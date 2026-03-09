@@ -13,6 +13,7 @@ import {
   isValidTranslation,
   makeCitation,
   resolveBook,
+  ensureInitialized,
 } from '../lib/bible-utils.js';
 import type { Citation } from '../lib/bible-utils.js';
 import { sanitizeFts5 } from './find-text.js';
@@ -41,6 +42,8 @@ const CONCORDANCE_DEFAULT_LIMIT = 100;
 const CONCORDANCE_MAX_LIMIT = 500;
 
 const concordance: ToolHandler = async (args) => {
+  await ensureInitialized();
+
   const { word, translation, limit: rawLimit } = args as {
     word: string;
     translation?: string;

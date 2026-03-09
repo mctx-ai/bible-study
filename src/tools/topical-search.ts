@@ -13,7 +13,7 @@ import type { ToolHandler } from '@mctx-ai/mcp-server';
 import { T } from '@mctx-ai/mcp-server';
 import { d1, vectorize, workersAi } from '../lib/cloudflare.js';
 import type { Citation } from '../lib/bible-utils.js';
-import { getTranslation } from '../lib/bible-utils.js';
+import { getTranslation, ensureInitialized } from '../lib/bible-utils.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -209,6 +209,8 @@ async function fetchVerseTexts(
 // ─── Tool handler ─────────────────────────────────────────────────────────────
 
 const topicalSearch: ToolHandler = async (args) => {
+  await ensureInitialized();
+
   const { topic, limit } = args as { topic: string; limit: number };
 
   // Run Nave's D1 query and Vectorize semantic search concurrently.

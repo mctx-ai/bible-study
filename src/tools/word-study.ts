@@ -20,6 +20,7 @@ import { d1 } from '../lib/cloudflare.js';
 import {
   makeCitation,
   validateVerseRef,
+  ensureInitialized,
 } from '../lib/bible-utils.js';
 import type { Citation } from '../lib/bible-utils.js';
 
@@ -55,6 +56,8 @@ interface WordStudyResult {
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 const wordStudy: ToolHandler = async (args) => {
+  await ensureInitialized();
+
   const { book, chapter, verse, word } = args as {
     book: string;
     chapter: number;

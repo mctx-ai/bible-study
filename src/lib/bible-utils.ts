@@ -171,7 +171,23 @@ export async function init(): Promise<void> {
   );
 }
 
-// Pre-populate caches at module load time.
-init().catch((err: unknown) => {
-  console.error('[bible-utils] Cache initialization failed:', err);
-});
+// ─── Lazy initialization ──────────────────────────────────────────────────────
+
+let initialized = false;
+let initPromise: Promise<void> | null = null;
+
+export async function ensureInitialized(): Promise<void> {
+  if (initialized) return;
+  if (initPromise) return initPromise;
+
+  initPromise = init()
+    .then(() => {
+      initialized = true;
+    })
+    .catch((err: unknown) => {
+      console.error('[bible-utils] init failed:', err);
+      initPromise = null; // Allow retry on next request
+    });
+
+  return initPromise;
+}

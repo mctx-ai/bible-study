@@ -12,6 +12,7 @@ import {
   resolveBook,
   getTranslation,
   makeCitation,
+  ensureInitialized,
   type Citation,
   type Book,
 } from '../lib/bible-utils.js';
@@ -196,6 +197,8 @@ async function fetchVersesByLocations(
 // ─── Tool implementation ──────────────────────────────────────────────────────
 
 const searchBible: ToolHandler = async (args) => {
+  await ensureInitialized();
+
   const {
     query,
     limit: limitRaw,

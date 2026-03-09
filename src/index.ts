@@ -10,10 +10,10 @@ import { createServer } from '@mctx-ai/mcp-server';
 
 // ─── Lib ──────────────────────────────────────────────────────────────────────
 //
-// Importing bible-utils triggers module-scoped cache initialization (init()).
-// The init() call inside bible-utils.ts runs at module load and pre-populates
-// the translation and book caches from D1. All tool and resource handlers
-// read from these in-memory caches rather than querying D1 per request.
+// bible-utils exports ensureInitialized(), which each tool and resource handler
+// calls at the start of its first request. That call populates the translation
+// and book caches from D1 once, then becomes a no-op on subsequent requests.
+// The caches are never pre-populated at module load time.
 
 import './lib/bible-utils.js';
 

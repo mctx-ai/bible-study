@@ -12,6 +12,7 @@ import {
   getTranslation,
   makeCitation,
   validateVerseRef,
+  ensureInitialized,
 } from '../lib/bible-utils.js';
 import type { Citation } from '../lib/bible-utils.js';
 
@@ -38,6 +39,8 @@ const DEFAULT_TRANSLATION = 'KJV';
 const DEFAULT_LIMIT = 20;
 
 const crossReferences: ToolHandler = async (args) => {
+  await ensureInitialized();
+
   const { book: bookInput, chapter, verse, limit: rawLimit } = args as {
     book: string;
     chapter: number;

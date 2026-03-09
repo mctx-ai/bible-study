@@ -10,6 +10,7 @@ import {
   resolveBook,
   getAllTranslations,
   makeCitation,
+  ensureInitialized,
 } from '../lib/bible-utils.js';
 import type { Citation } from '../lib/bible-utils.js';
 
@@ -36,6 +37,8 @@ interface CompareTranslationsResult {
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 const compareTranslations: ToolHandler = async (args) => {
+  await ensureInitialized();
+
   const { book: bookInput, chapter, verse_start, verse_end } = args as {
     book: string;
     chapter: number;

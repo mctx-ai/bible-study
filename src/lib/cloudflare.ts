@@ -1,12 +1,28 @@
 // Cloudflare HTTP REST API client
-// Reads config from environment at module scope (nodejs_compat mode)
+// Config is read lazily at request time — not at module evaluation time.
+// In Cloudflare Workers, process.env is not populated until the request
+// handler runs, so module-scope reads always return empty strings.
 
-const apiToken =
-  process.env.BIBLE_API_TOKEN ?? process.env.CLOUDFLARE_API_TOKEN ?? '';
-const accountId =
-  process.env.BIBLE_ACCOUNT_ID ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? '';
-const databaseId = process.env.D1_DATABASE_ID ?? '';
-const indexName = process.env.VECTORIZE_INDEX_NAME ?? '';
+let _config: {
+  apiToken: string;
+  accountId: string;
+  databaseId: string;
+  indexName: string;
+} | null = null;
+
+function getConfig() {
+  if (!_config) {
+    _config = {
+      apiToken:
+        process.env.BIBLE_API_TOKEN ?? process.env.CLOUDFLARE_API_TOKEN ?? '',
+      accountId:
+        process.env.BIBLE_ACCOUNT_ID ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? '',
+      databaseId: process.env.D1_DATABASE_ID ?? '',
+      indexName: process.env.VECTORIZE_INDEX_NAME ?? '',
+    };
+  }
+  return _config;
+}
 
 const BASE = 'https://api.cloudflare.com/client/v4';
 
@@ -41,7 +57,7 @@ export interface VectorizeMatch {
 
 function authHeaders(): Record<string, string> {
   return {
-    Authorization: `Bearer ${apiToken}`,
+    Authorization: `Bearer ${getConfig().apiToken}`,
     'Content-Type': 'application/json',
   };
 }
@@ -77,12 +93,12 @@ async function cfFetch<T>(url: string, init: RequestInit): Promise<T> {
 
 // ─── D1 client ────────────────────────────────────────────────────────────────
 
-const d1Base = `${BASE}/accounts/${accountId}/d1/database/${databaseId}`;
-
 async function d1Query(
   sql: string,
   params: unknown[] = []
 ): Promise<D1Result> {
+  const { accountId, databaseId } = getConfig();
+  const d1Base = `${BASE}/accounts/${accountId}/d1/database/${databaseId}`;
   const result = await cfFetch<D1ResultSet[]>(`${d1Base}/query`, {
     method: 'POST',
     body: JSON.stringify({ sql, params }),
@@ -105,6 +121,9 @@ async function d1Batch(
     sql: stmt.sql,
     params: stmt.params ?? [],
   }));
+
+  const { accountId, databaseId } = getConfig();
+  const d1Base = `${BASE}/accounts/${accountId}/d1/database/${databaseId}`;
 
   // The D1 batch endpoint accepts an array of SQL objects and returns
   // one result set per statement in input order — single HTTP round-trip.
@@ -129,12 +148,12 @@ export const d1 = {
 
 // ─── Vectorize client ─────────────────────────────────────────────────────────
 
-const vectorizeBase = `${BASE}/accounts/${accountId}/vectorize/v2/indexes/${indexName}`;
-
 async function vectorizeQuery(
   vector: number[],
   options?: { topK?: number; filter?: Record<string, string> }
 ): Promise<VectorizeMatch[]> {
+  const { accountId, indexName } = getConfig();
+  const vectorizeBase = `${BASE}/accounts/${accountId}/vectorize/v2/indexes/${indexName}`;
   const body: Record<string, unknown> = { vector };
   if (options?.topK !== undefined) body['top_k'] = options.topK;
   if (options?.filter !== undefined) body['filter'] = options.filter;
@@ -161,6 +180,9 @@ async function vectorizeUpsert(
     );
   }
 
+  const { accountId, indexName } = getConfig();
+  const vectorizeBase = `${BASE}/accounts/${accountId}/vectorize/v2/indexes/${indexName}`;
+
   await cfFetch<unknown>(`${vectorizeBase}/upsert`, {
     method: 'POST',
     body: JSON.stringify({ vectors }),
@@ -169,6 +191,9 @@ async function vectorizeUpsert(
 
 async function vectorizeDeleteByIds(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
+
+  const { accountId, indexName } = getConfig();
+  const vectorizeBase = `${BASE}/accounts/${accountId}/vectorize/v2/indexes/${indexName}`;
 
   await cfFetch<unknown>(`${vectorizeBase}/delete-by-ids`, {
     method: 'POST',
@@ -197,6 +222,7 @@ async function workersAiEmbed(
     );
   }
 
+  const { accountId } = getConfig();
   const result = await cfFetch<{ data: number[][] }>(
     `${BASE}/accounts/${accountId}/ai/run/${model}`,
     {

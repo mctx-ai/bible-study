@@ -12,6 +12,7 @@ import {
   isValidTranslation,
   makeCitation,
   resolveBook,
+  ensureInitialized,
 } from '../lib/bible-utils.js';
 import type { Citation } from '../lib/bible-utils.js';
 
@@ -53,6 +54,8 @@ const FIND_TEXT_DEFAULT_LIMIT = 20;
 const FIND_TEXT_MAX_LIMIT = 100;
 
 const findText: ToolHandler = async (args) => {
+  await ensureInitialized();
+
   const { query, translation, limit: rawLimit } = args as {
     query: string;
     translation?: string;
