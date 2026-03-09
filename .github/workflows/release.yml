@@ -157,13 +157,14 @@ jobs:
           git pull --rebase origin main
 
           jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp && mv package.json.tmp package.json
+          npm install --package-lock-only
 
-          git add package.json
+          git add package.json package-lock.json
           git commit -m "chore: bump version to ${NEW_VERSION} [skip ci]"
 
-          # Verify only package.json was modified
-          changed_files=$(git diff --name-only HEAD~1)
-          if [ "$changed_files" != "package.json" ]; then
+          # Verify only package.json and package-lock.json were modified
+          changed_files=$(git diff --name-only HEAD~1 | sort | tr '\n' ' ' | sed 's/ $//')
+          if [ "$changed_files" != "package-lock.json package.json" ] && [ "$changed_files" != "package.json" ] && [ "$changed_files" != "package.json package-lock.json" ]; then
             echo "ERROR: Unexpected files modified: ${changed_files}"
             exit 1
           fi
