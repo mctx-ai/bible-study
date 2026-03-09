@@ -21,6 +21,8 @@ import type { ToolHandler } from '@mctx-ai/mcp-server';
 import { T } from '@mctx-ai/mcp-server';
 import { d1 } from '../lib/cloudflare.js';
 import {
+  getTranslation,
+  isValidTranslation,
   makeCitation,
   validateVerseRef,
   ensureInitialized,
@@ -51,6 +53,7 @@ interface WordStudyResult {
   definition: string;
   lexicon: LexiconDef;
   morphology: MorphologyInfo;
+  matched_count: number;
   other_occurrences: OtherOccurrence[];
   total_occurrences: number;
   citation: Citation;
@@ -61,12 +64,26 @@ interface WordStudyResult {
 const wordStudy: ToolHandler = async (args, _ask?) => {
   await ensureInitialized();
 
-  const { book, chapter, verse, word } = args as {
+  const { book, chapter, verse, word, translation } = args as {
     book: string;
     chapter: number;
     verse: number;
     word: string;
+    translation?: string;
   };
+
+  // Resolve translation ID for verse text. Falls back to KJV (id=1) when the
+  // user doesn't specify a translation or specifies an unknown one.
+  const KJV_TRANSLATION_ID = 1;
+  let verseTranslationId = KJV_TRANSLATION_ID;
+  let verseTranslationAbbrev = 'KJV';
+  if (translation !== undefined && isValidTranslation(translation)) {
+    const resolvedTranslation = getTranslation(translation);
+    if (resolvedTranslation) {
+      verseTranslationId = resolvedTranslation.id;
+      verseTranslationAbbrev = resolvedTranslation.abbreviation;
+    }
+  }
 
   // 1. Resolve book.
   const validation = validateVerseRef(book, chapter, verse);
@@ -109,16 +126,22 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
   //    (e.g. '1a', '2b'). An integer input of '1' should match both '1' and
   //    compound sub-parts '1a', '1b' (all parts of the same source word).
   let matchedRow: Record<string, unknown> | undefined;
+  let matchedCount = 0;
 
   if (/^\d+[a-z]*$/i.test(wordParam)) {
     matchedRow = matchByPosition(wordParam, morphResult.results);
+    if (matchedRow) {
+      matchedCount = 1; // Positional match is always unambiguous.
+    }
   }
 
   // 3b. Fall back: match English word against Strong's definition glosses.
   //    This avoids positional alignment between English and Hebrew/Greek text
   //    entirely — matching happens through meaning instead.
   if (!matchedRow) {
-    matchedRow = matchByEnglishGloss(wordParam, morphResult.results);
+    const { first, count } = matchByEnglishGloss(wordParam, morphResult.results);
+    matchedRow = first;
+    matchedCount = count;
   }
 
   if (!matchedRow) {
@@ -194,7 +217,9 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
 
   // Fetch verse texts for other occurrences to build human-readable results.
   const otherOccurrences = await buildOtherOccurrences(
-    otherVersesMorphResult.results
+    otherVersesMorphResult.results,
+    verseTranslationId,
+    verseTranslationAbbrev
   );
 
   // Build source citation — use the first translation_id found for this verse.
@@ -218,6 +243,7 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
       lemma: (matchedRow['lemma'] as string) ?? '',
       parsing: (matchedRow['parsing'] as string) ?? '',
     },
+    matched_count: matchedCount,
     other_occurrences: otherOccurrences,
     total_occurrences: totalOccurrences,
     citation: sourceCitation,
@@ -267,44 +293,60 @@ function matchByPosition(
  *
  * Falls back to matching against the lemma field (which may contain an
  * English gloss for rows without a Strong's entry).
+ *
+ * Returns the first matching row and the total number of matching rows so the
+ * caller can surface a matched_count to users when alternatives exist.
  */
 function matchByEnglishGloss(
   wordParam: string,
   morphRows: Record<string, unknown>[]
-): Record<string, unknown> | undefined {
+): { first: Record<string, unknown> | undefined; count: number } {
   const target = wordParam.toLowerCase();
   // Build a word-boundary regex so 'sin' doesn't match 'since'.
   const wordBoundaryRe = new RegExp(`\\b${escapeRegex(target)}\\b`, 'i');
 
   // First pass: exact word-boundary match against Strong's definition gloss.
-  const glossMatch = morphRows.find((row) => {
+  const glossMatches = morphRows.filter((row) => {
     const def = row['strongs_definition'];
     if (typeof def === 'string' && def.length > 0) {
       return wordBoundaryRe.test(def);
     }
     return false;
   });
-  if (glossMatch) return glossMatch;
+  if (glossMatches.length > 0) {
+    return { first: glossMatches[0], count: glossMatches.length };
+  }
 
   // Second pass: word-boundary match against lemma (may be an English gloss
   // for rows where the original script lemma was absent during ETL).
-  const lemmaMatch = morphRows.find((row) => {
+  const lemmaMatches = morphRows.filter((row) => {
     const lemma = row['lemma'];
     if (typeof lemma === 'string' && lemma.length > 0) {
       return wordBoundaryRe.test(lemma);
     }
     return false;
   });
-  if (lemmaMatch) return lemmaMatch;
+  if (lemmaMatches.length > 0) {
+    return { first: lemmaMatches[0], count: lemmaMatches.length };
+  }
 
   // Third pass: substring match against Strong's definition (broader fallback).
-  return morphRows.find((row) => {
-    const def = row['strongs_definition'];
-    if (typeof def === 'string' && def.length > 0) {
-      return def.toLowerCase().includes(target);
+  // Guard: only attempt substring matching for inputs of 3+ characters to
+  // prevent false positives from short words (e.g. 'in' matching 'beginning').
+  if (target.length >= 3) {
+    const substringMatches = morphRows.filter((row) => {
+      const def = row['strongs_definition'];
+      if (typeof def === 'string' && def.length > 0) {
+        return def.toLowerCase().includes(target);
+      }
+      return false;
+    });
+    if (substringMatches.length > 0) {
+      return { first: substringMatches[0], count: substringMatches.length };
     }
-    return false;
-  });
+  }
+
+  return { first: undefined, count: 0 };
 }
 
 /** Escape special regex characters in a literal string. */
@@ -318,16 +360,16 @@ function escapeRegex(s: string): string {
  *
  * We bulk-fetch verse texts using a single query with OR conditions to avoid
  * N+1 queries (up to 20 rows).
+ *
+ * @param translationId   The English translation ID to use for verse text (default KJV=1).
+ * @param translationAbbrev  The abbreviation of that translation (used in citations).
  */
 async function buildOtherOccurrences(
-  rows: Record<string, unknown>[]
+  rows: Record<string, unknown>[],
+  translationId: number,
+  translationAbbrev: string
 ): Promise<OtherOccurrence[]> {
   if (rows.length === 0) return [];
-
-  // Morphology rows use translation_id 6 (Hebrew) or 7 (Greek). English verse
-  // text only exists for translation_id 1-5. Always query KJV (id=1) for
-  // other-occurrence verse text.
-  const KJV_TRANSLATION_ID = 1;
 
   // Build a single query with UNION ALL to fetch all needed verses at once.
   // Each row has book_id, chapter, verse. We deduplicate by verse reference.
@@ -348,7 +390,7 @@ async function buildOtherOccurrences(
 
   if (uniqueRefs.length === 0) return [];
 
-  // Build WHERE clause for bulk verse fetch. All rows use the same KJV
+  // Build WHERE clause for bulk verse fetch. All rows use the same
   // translation_id, so we only parameterise book/chapter/verse.
   const conditions = uniqueRefs
     .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ?)')
@@ -367,7 +409,7 @@ async function buildOtherOccurrences(
      JOIN books b ON b.id = v.book_id
      JOIN translations t ON t.id = v.translation_id
      WHERE v.translation_id = ? AND (${conditions})`,
-    [KJV_TRANSLATION_ID, ...params]
+    [translationId, ...params]
   );
 
   // Build a lookup map for fast access.
@@ -386,11 +428,15 @@ async function buildOtherOccurrences(
     const row = verseMap.get(key);
     if (!row) continue;
 
+    // Use the translation abbreviation from the DB response when available,
+    // falling back to the requested abbreviation for consistency.
+    const abbrev = (row['translation_abbrev'] as string | undefined) ?? translationAbbrev;
+
     const citation: Citation = {
       book: row['book_name'] as string,
       chapter: ref.chapter,
       verse: ref.verse,
-      translation: row['translation_abbrev'] as string,
+      translation: abbrev,
     };
 
     occurrences.push({
@@ -438,6 +484,13 @@ wordStudy.input = {
       '(2) an English surface form (e.g. "love", "grace") that will be matched ' +
       'against the verse text to determine its position.',
     minLength: 1,
+  }),
+  translation: T.string({
+    required: false,
+    description:
+      'Translation abbreviation for verse text in results (e.g. "KJV", "WEB", "ASV"). ' +
+      'Defaults to KJV when omitted or unrecognized. Does not affect the morphology or ' +
+      "Strong's data, which is always Hebrew/Greek.",
   }),
 };
 
