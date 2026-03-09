@@ -10,7 +10,7 @@ let _config: {
   indexName: string;
 } | null = null;
 
-function getConfig() {
+export function getConfig() {
   if (!_config) {
     _config = {
       apiToken:
@@ -22,6 +22,10 @@ function getConfig() {
     };
   }
   return _config;
+}
+
+export function resetConfigForTesting() {
+  _config = null;
 }
 
 const BASE = 'https://api.cloudflare.com/client/v4';

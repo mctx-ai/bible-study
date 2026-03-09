@@ -176,6 +176,14 @@ export async function init(): Promise<void> {
 let initialized = false;
 let initPromise: Promise<void> | null = null;
 
+/** Resets initialization state for test isolation. Do not call in production. */
+export function resetInitForTesting(): void {
+  initialized = false;
+  initPromise = null;
+  translationCache.clear();
+  bookCache.clear();
+}
+
 export async function ensureInitialized(): Promise<void> {
   if (initialized) return;
   if (initPromise) return initPromise;
