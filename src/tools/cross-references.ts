@@ -70,13 +70,38 @@ const crossReferences: ToolHandler = async (args, _ask?) => {
     throw new Error(`Translation "${DEFAULT_TRANSLATION}" not found in database.`);
   }
 
-  // Fetch the source verse text
-  const sourceResult = await d1.query(
-    `SELECT text FROM verses
-     WHERE book_id = ? AND chapter = ? AND verse = ? AND translation_id = ?
-     LIMIT 1`,
-    [book.id, chapter, verse, translation.id]
-  );
+  // Fetch source verse text and cross-references in a single d1.batch() call
+  // to eliminate a serial HTTP round-trip.
+  const [sourceResult, xrefResult] = await d1.batch([
+    {
+      sql: `SELECT text FROM verses
+            WHERE book_id = ? AND chapter = ? AND verse = ? AND translation_id = ?
+            LIMIT 1`,
+      params: [book.id, chapter, verse, translation.id],
+    },
+    {
+      sql: `SELECT
+               cr.to_book_id,
+               cr.to_chapter,
+               cr.to_verse,
+               cr.confidence,
+               b.name  AS to_book_name,
+               v.text  AS to_text
+             FROM cross_references cr
+             JOIN books b ON b.id = cr.to_book_id
+             LEFT JOIN verses v
+               ON v.book_id = cr.to_book_id
+               AND v.chapter = cr.to_chapter
+               AND v.verse   = cr.to_verse
+               AND v.translation_id = ?
+             WHERE cr.from_book_id = ?
+               AND cr.from_chapter  = ?
+               AND cr.from_verse    = ?
+             ORDER BY cr.confidence DESC NULLS LAST, cr.id ASC
+             LIMIT ?`,
+      params: [translation.id, book.id, chapter, verse, limit],
+    },
+  ]);
 
   if (sourceResult.results.length === 0) {
     throw new Error(
@@ -87,31 +112,6 @@ const crossReferences: ToolHandler = async (args, _ask?) => {
 
   const sourceText = sourceResult.results[0]['text'] as string;
   const sourceCitation = makeCitation(book, chapter, verse, DEFAULT_TRANSLATION);
-
-  // Fetch cross-references for the source verse, joining to resolve
-  // the target book name and the verse text in KJV.
-  const xrefResult = await d1.query(
-    `SELECT
-       cr.to_book_id,
-       cr.to_chapter,
-       cr.to_verse,
-       cr.confidence,
-       b.name  AS to_book_name,
-       v.text  AS to_text
-     FROM cross_references cr
-     JOIN books b ON b.id = cr.to_book_id
-     LEFT JOIN verses v
-       ON v.book_id = cr.to_book_id
-       AND v.chapter = cr.to_chapter
-       AND v.verse   = cr.to_verse
-       AND v.translation_id = ?
-     WHERE cr.from_book_id = ?
-       AND cr.from_chapter  = ?
-       AND cr.from_verse    = ?
-     ORDER BY cr.confidence DESC NULLS LAST, cr.id ASC
-     LIMIT ?`,
-    [translation.id, book.id, chapter, verse, limit]
-  );
 
   const crossReferenceEntries: CrossReferenceEntry[] = xrefResult.results.map(
     (row) => {
