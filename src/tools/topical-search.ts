@@ -163,24 +163,11 @@ async function searchSemantic(
 
 // ─── Fetch verse text for semantic results ─────────────────────────────────────
 
-async function fetchVerseTexts(
-  coords: Array<{ book_id: number; chapter: number; verse: number; translation_id: number }>,
-): Promise<Map<string, VerseRow>> {
-  if (coords.length === 0) return new Map();
+// D1 limits bound parameters to 100 per statement. Each verse lookup requires
+// 4 parameters (book_id, chapter, verse, translation_id), so cap chunk size at 25.
+const VERSE_CHUNK_SIZE = 25;
 
-  // Build a single IN-style query. D1 doesn't support table-valued parameters,
-  // so we build individual OR conditions. For up to ~20 results this is fine.
-  const clauses = coords
-    .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ? AND v.translation_id = ?)')
-    .join(' OR ');
-
-  const params: unknown[] = [];
-  for (const c of coords) {
-    params.push(c.book_id, c.chapter, c.verse, c.translation_id);
-  }
-
-  const result = await d1.query(
-    `SELECT
+const VERSE_SELECT_SQL = `SELECT
        v.book_id         AS book_id,
        v.chapter         AS chapter,
        v.verse           AS verse,
@@ -190,17 +177,48 @@ async function fetchVerseTexts(
      FROM verses v
      JOIN books b       ON b.id = v.book_id
      JOIN translations t ON t.id = v.translation_id
-     WHERE ${clauses}`,
-    params,
-  );
+     WHERE `;
+
+function buildVerseChunkStatement(
+  chunk: Array<{ book_id: number; chapter: number; verse: number; translation_id: number }>,
+): { sql: string; params: unknown[] } {
+  const clauses = chunk
+    .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ? AND v.translation_id = ?)')
+    .join(' OR ');
+
+  const params: unknown[] = [];
+  for (const c of chunk) {
+    params.push(c.book_id, c.chapter, c.verse, c.translation_id);
+  }
+
+  return { sql: `${VERSE_SELECT_SQL}${clauses}`, params };
+}
+
+async function fetchVerseTexts(
+  coords: Array<{ book_id: number; chapter: number; verse: number; translation_id: number }>,
+): Promise<Map<string, VerseRow>> {
+  if (coords.length === 0) return new Map();
+
+  // Chunk coords to stay within D1's 100-parameter-per-statement ceiling.
+  const chunks: Array<typeof coords> = [];
+  for (let i = 0; i < coords.length; i += VERSE_CHUNK_SIZE) {
+    chunks.push(coords.slice(i, i + VERSE_CHUNK_SIZE));
+  }
+
+  // Use d1.batch() for multiple chunks to minimise HTTP round-trips (single call).
+  // For a single chunk, d1.batch() still works correctly.
+  const statements = chunks.map(buildVerseChunkStatement);
+  const resultSets = await d1.batch(statements);
 
   const verseMap = new Map<string, VerseRow>();
 
-  for (const row of result.results) {
-    const r = row as unknown as VerseRow;
-    // Key uses book_id (numeric) to match the coordMap keys from semantic search.
-    const key = `${r.book_id}:${r.chapter}:${r.verse}`;
-    verseMap.set(key, r);
+  for (const resultSet of resultSets) {
+    for (const row of resultSet.results) {
+      const r = row as unknown as VerseRow;
+      // Key uses book_id (numeric) to match the coordMap keys from semantic search.
+      const key = `${r.book_id}:${r.chapter}:${r.verse}`;
+      verseMap.set(key, r);
+    }
   }
 
   return verseMap;
