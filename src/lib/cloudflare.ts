@@ -96,8 +96,35 @@ async function d1Query(
   return result[0];
 }
 
+async function d1Batch(
+  statements: Array<{ sql: string; params?: unknown[] }>
+): Promise<D1Result[]> {
+  if (statements.length === 0) return [];
+
+  const body = statements.map((stmt) => ({
+    sql: stmt.sql,
+    params: stmt.params ?? [],
+  }));
+
+  // The D1 batch endpoint accepts an array of SQL objects and returns
+  // one result set per statement in input order — single HTTP round-trip.
+  const results = await cfFetch<D1ResultSet[]>(`${d1Base}/query`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+
+  if (!Array.isArray(results) || results.length !== statements.length) {
+    throw new Error(
+      `D1 batch returned ${Array.isArray(results) ? results.length : 'non-array'} results for ${statements.length} statements`
+    );
+  }
+
+  return results;
+}
+
 export const d1 = {
   query: d1Query,
+  batch: d1Batch,
 };
 
 // ─── Vectorize client ─────────────────────────────────────────────────────────

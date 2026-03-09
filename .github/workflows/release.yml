@@ -28,29 +28,17 @@ jobs:
       - name: Check for runtime changes
         id: hash-check
         run: |
-          NEW_HASH=$(sha256sum dist/index.js | cut -d' ' -f1)
-          OLD_HASH=$(git show origin/release:.dist-hash 2>/dev/null || echo "none")
+          NEW_HASH=$(cat dist/index.js package.json README.md | sha256sum | cut -d' ' -f1)
+          OLD_HASH=$(git show origin/release:.release-hash 2>/dev/null || echo "none")
           echo "new_hash=$NEW_HASH" >> $GITHUB_OUTPUT
           echo "old_hash=$OLD_HASH" >> $GITHUB_OUTPUT
 
-          README_CHANGED=false
-          NEW_README_HASH=$(sha256sum README.md | cut -d' ' -f1)
-          OLD_README_HASH=$(git show origin/release:README.md 2>/dev/null | sha256sum | cut -d' ' -f1 || echo "none")
-          if [ "$NEW_README_HASH" != "$OLD_README_HASH" ]; then
-            README_CHANGED=true
-          fi
-
-          if [ "$NEW_HASH" = "$OLD_HASH" ] && [ "$README_CHANGED" = "false" ]; then
+          if [ "$NEW_HASH" = "$OLD_HASH" ]; then
             echo "changed=false" >> $GITHUB_OUTPUT
-            echo "No runtime or README changes detected. Skipping release."
+            echo "No changes detected. Skipping release."
           else
             echo "changed=true" >> $GITHUB_OUTPUT
-            if [ "$NEW_HASH" != "$OLD_HASH" ]; then
-              echo "Runtime changes detected. Proceeding with release."
-            fi
-            if [ "$README_CHANGED" = "true" ]; then
-              echo "README.md changes detected. Proceeding with release."
-            fi
+            echo "Changes detected. Proceeding with release."
           fi
 
       - name: Determine version bump
@@ -102,7 +90,6 @@ jobs:
         env:
           TOKEN: ${{ steps.app-token.outputs.token }}
           NEW_VERSION: ${{ steps.version.outputs.new_version }}
-          NEW_HASH: ${{ steps.hash-check.outputs.new_hash }}
         run: |
           if ! echo "$NEW_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "ERROR: new_version '${NEW_VERSION}' is not a valid semver. Aborting."
@@ -129,11 +116,11 @@ jobs:
           # Update package.json version
           jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp && mv package.json.tmp package.json
 
-          # Write dist hash
-          echo "$NEW_HASH" > .dist-hash
+          # Write combined hash AFTER version bump so stored hash reflects bumped state
+          cat dist/index.js package.json README.md | sha256sum | cut -d' ' -f1 > .release-hash
 
           # Commit and push
-          git add -f dist/ package.json .dist-hash README.md
+          git add -f dist/ package.json .release-hash README.md
           git commit -m "release: v${NEW_VERSION}"
           git remote set-url origin "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git"
           git push origin release
