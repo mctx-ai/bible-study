@@ -214,13 +214,18 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
   const { topic, limit } = args as { topic: string; limit: number };
 
   // Run Nave's D1 query and Vectorize semantic search concurrently.
-  const [navesResults, semanticCoords] = await Promise.all([
-    searchNaves(topic, limit),
-    searchSemantic(topic, limit),
-  ]);
+  // Chain fetchVerseTexts off the semantic search promise so it starts as soon
+  // as semantic results arrive, without waiting for the Naves D1 query to finish.
+  const semanticCoordsPromise = searchSemantic(topic, limit);
+  const semanticVerseMapPromise = semanticCoordsPromise.then((coords) =>
+    fetchVerseTexts(Array.from(coords.values()))
+  );
 
-  // Fetch verse text for semantic results.
-  const semanticVerseMap = await fetchVerseTexts(Array.from(semanticCoords.values()));
+  const [navesResults, semanticCoords, semanticVerseMap] = await Promise.all([
+    searchNaves(topic, limit),
+    semanticCoordsPromise,
+    semanticVerseMapPromise,
+  ]);
 
   // Build final deduplicated results map.
   // Nave's results already use "book_name:chapter:verse" keys.
