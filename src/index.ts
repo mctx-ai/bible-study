@@ -36,7 +36,7 @@ import topicalSearchHandler from './tools/topical-search.js';
 // ─── Server ──────────────────────────────────────────────────────────────────
 
 const server = createServer({
-  instructions: `Bible MCP Server v1.0.11 — 5 public domain translations: KJV, WEB, ASV, YLT, Darby (case-insensitive). Every result includes a structured citation (book, chapter, verse, translation).
+  instructions: `Bible MCP Server v1.0.14 — 5 public domain translations: KJV, WEB, ASV, YLT, Darby (case-insensitive). Every result includes a structured citation (book, chapter, verse, translation).
 Always cite results as 'Book Chapter:Verse (Translation)'.
 
 TOOL SELECTION GUIDE:

@@ -347,6 +347,76 @@ function matchByPosition(
 }
 
 /**
+ * Generate candidate root forms by stripping common English suffixes.
+ *
+ * Suffixes are tried longest-first to avoid incorrect partial stripping
+ * (e.g. '-ieth' before '-eth'). Each rule may also emit a vowel-restored
+ * variant (root + 'e') to handle silent-e stems such as 'lov-' → 'love'.
+ *
+ * The order of candidates returned determines matching priority: more
+ * specific (longer suffix stripped) forms come before less specific ones.
+ *
+ * Note: '-tion' is intentionally excluded — it is a legitimate word ending
+ * that should not be stripped.
+ */
+function generateSuffixCandidates(word: string): string[] {
+  const candidates: string[] = [];
+
+  // Helper: add root and optionally root+'e' if not already ending in 'e'.
+  function addRoot(root: string, withE = false): void {
+    if (root.length === 0) return;
+    candidates.push(root);
+    if (withE && !root.endsWith('e')) {
+      candidates.push(root + 'e');
+    }
+  }
+
+  // -ieth (e.g. 'fortieth' → 'forti') — strip only, no vowel restore needed.
+  if (word.endsWith('ieth')) {
+    addRoot(word.slice(0, -4));
+  }
+
+  // -eth (e.g. 'giveth' → 'giv', also try 'give').
+  if (word.endsWith('eth')) {
+    addRoot(word.slice(0, -3), true);
+  }
+
+  // -est (e.g. 'greatest' → 'great').
+  if (word.endsWith('est')) {
+    addRoot(word.slice(0, -3));
+  }
+
+  // -ing (e.g. 'loving' → 'lov', also try 'love').
+  if (word.endsWith('ing')) {
+    addRoot(word.slice(0, -3), true);
+  }
+
+  // -ed (e.g. 'loved' → 'lov', also try 'love').
+  if (word.endsWith('ed')) {
+    addRoot(word.slice(0, -2), true);
+  }
+
+  // -es (e.g. 'churches' → 'church').
+  if (word.endsWith('es')) {
+    addRoot(word.slice(0, -2));
+  }
+
+  // -s (e.g. 'sins' → 'sin'). Only strip when the result is ≥3 chars to
+  // avoid degenerate roots like 'i' from 'is'.
+  if (word.endsWith('s') && !word.endsWith('ss') && word.length > 3) {
+    addRoot(word.slice(0, -1));
+  }
+
+  // Deduplicate while preserving order.
+  const seen = new Set<string>();
+  return candidates.filter((c) => {
+    if (seen.has(c)) return false;
+    seen.add(c);
+    return true;
+  });
+}
+
+/**
  * Match an English word against the Strong's definition glosses and lexicon
  * definitions attached to each morphology row.
  *
@@ -358,6 +428,10 @@ function matchByPosition(
  * Falls back to matching against the lemma field (which may contain an
  * English gloss for rows without a Strong's entry).
  *
+ * When the original word yields no match, suffix stripping generates
+ * candidate root forms (e.g. 'loved' → 'lov', 'love') that are each tried
+ * through the same matching passes before giving up.
+ *
  * Returns the first matching row and the total number of matching rows so the
  * caller can surface a matched_count to users when alternatives exist.
  */
@@ -365,57 +439,77 @@ function matchByEnglishGloss(
   wordParam: string,
   morphRows: Record<string, unknown>[]
 ): { first: Record<string, unknown> | undefined; count: number } {
-  const target = wordParam.toLowerCase();
-  // Build a word-boundary regex so 'sin' doesn't match 'since'.
-  const wordBoundaryRe = new RegExp(`\\b${escapeRegex(target)}\\b`, 'i');
+  // Inner function: run all matching passes for a given target string.
+  // Returns the match result, or { first: undefined, count: 0 } on no match.
+  function tryMatch(
+    target: string
+  ): { first: Record<string, unknown> | undefined; count: number } {
+    // Build a word-boundary regex so 'sin' doesn't match 'since'.
+    const wordBoundaryRe = new RegExp(`\\b${escapeRegex(target)}\\b`, 'i');
 
-  /**
-   * Test whether any of the definition fields on a morphology row match the
-   * word-boundary regex. Checks strongs_definition, lexicon_short_def, and
-   * lexicon_long_def so that words like "LORD" (gloss) and "Yahweh" (long_def)
-   * or inflected forms like "loved"/"love" (long_def expansions) are all reachable.
-   */
-  function matchesDefinitionFields(row: Record<string, unknown>): boolean {
-    const fields = ['strongs_definition', 'lexicon_short_def', 'lexicon_long_def'];
-    return fields.some((field) => {
-      const val = row[field];
-      return typeof val === 'string' && val.length > 0 && wordBoundaryRe.test(val);
-    });
-  }
-
-  // First pass: word-boundary match against Strong's gloss and lexicon defs.
-  const glossMatches = morphRows.filter(matchesDefinitionFields);
-  if (glossMatches.length > 0) {
-    return { first: glossMatches[0], count: glossMatches.length };
-  }
-
-  // Second pass: word-boundary match against lemma (may be an English gloss
-  // for rows where the original script lemma was absent during ETL).
-  const lemmaMatches = morphRows.filter((row) => {
-    const lemma = row['lemma'];
-    if (typeof lemma === 'string' && lemma.length > 0) {
-      return wordBoundaryRe.test(lemma);
-    }
-    return false;
-  });
-  if (lemmaMatches.length > 0) {
-    return { first: lemmaMatches[0], count: lemmaMatches.length };
-  }
-
-  // Third pass: substring match against all definition fields (broader fallback).
-  // Guard: only attempt substring matching for inputs of 3+ characters to
-  // prevent false positives from short words (e.g. 'in' matching 'beginning').
-  if (target.length >= 3) {
-    const substringMatches = morphRows.filter((row) => {
+    /**
+     * Test whether any of the definition fields on a morphology row match the
+     * word-boundary regex. Checks strongs_definition, lexicon_short_def, and
+     * lexicon_long_def so that words like "LORD" (gloss) and "Yahweh" (long_def)
+     * or inflected forms like "loved"/"love" (long_def expansions) are all reachable.
+     */
+    function matchesDefinitionFields(row: Record<string, unknown>): boolean {
       const fields = ['strongs_definition', 'lexicon_short_def', 'lexicon_long_def'];
       return fields.some((field) => {
         const val = row[field];
-        return typeof val === 'string' && val.length > 0 && val.toLowerCase().includes(target);
+        return typeof val === 'string' && val.length > 0 && wordBoundaryRe.test(val);
       });
-    });
-    if (substringMatches.length > 0) {
-      return { first: substringMatches[0], count: substringMatches.length };
     }
+
+    // First pass: word-boundary match against Strong's gloss and lexicon defs.
+    const glossMatches = morphRows.filter(matchesDefinitionFields);
+    if (glossMatches.length > 0) {
+      return { first: glossMatches[0], count: glossMatches.length };
+    }
+
+    // Second pass: word-boundary match against lemma (may be an English gloss
+    // for rows where the original script lemma was absent during ETL).
+    const lemmaMatches = morphRows.filter((row) => {
+      const lemma = row['lemma'];
+      if (typeof lemma === 'string' && lemma.length > 0) {
+        return wordBoundaryRe.test(lemma);
+      }
+      return false;
+    });
+    if (lemmaMatches.length > 0) {
+      return { first: lemmaMatches[0], count: lemmaMatches.length };
+    }
+
+    // Third pass: substring match against all definition fields (broader fallback).
+    // Guard: only attempt substring matching for inputs of 3+ characters to
+    // prevent false positives from short words (e.g. 'in' matching 'beginning').
+    if (target.length >= 3) {
+      const substringMatches = morphRows.filter((row) => {
+        const fields = ['strongs_definition', 'lexicon_short_def', 'lexicon_long_def'];
+        return fields.some((field) => {
+          const val = row[field];
+          return typeof val === 'string' && val.length > 0 && val.toLowerCase().includes(target);
+        });
+      });
+      if (substringMatches.length > 0) {
+        return { first: substringMatches[0], count: substringMatches.length };
+      }
+    }
+
+    return { first: undefined, count: 0 };
+  }
+
+  const originalTarget = wordParam.toLowerCase();
+
+  // 1. Try original word first (existing behavior).
+  const originalResult = tryMatch(originalTarget);
+  if (originalResult.first) return originalResult;
+
+  // 2. Generate suffix-stripped candidates and try each in order.
+  const candidates = generateSuffixCandidates(originalTarget);
+  for (const candidate of candidates) {
+    const candidateResult = tryMatch(candidate);
+    if (candidateResult.first) return candidateResult;
   }
 
   return { first: undefined, count: 0 };
