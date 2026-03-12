@@ -1,8 +1,10 @@
-# Bible MCP Server
+# Bible
 
 A complete scholarly Bible study toolkit — semantic search, original-language word studies, translation comparison, cross-reference traversal, and topical research — available as AI-native tools for the first time.
 
 Without this server, deep Bible study means juggling multiple browser tabs: a concordance site here, a lexicon there, a translation comparison tool somewhere else. You lose the thread of your research every time you switch. This server brings all of that into your AI assistant, where each result informs the next question and the entire study session stays in one conversation.
+
+Your AI already knows the Bible in general terms — what this server gives it is the structured scholarly data that doesn't exist in any training set: 17,543 Strong's entries with full BDB and Thayer lexicon definitions, morphological parsing for 447,734 individual words, the complete OpenBible cross-reference dataset, and Nave's 5,319 topical categories.
 
 ---
 
@@ -80,6 +82,16 @@ Once subscribed, just talk to your AI assistant as you normally would. Ask your 
 **Nave's Topical search for "Covenant":**
 
 > Nave's Topical Bible lists **Covenant** as a primary category with subcategories including: Covenant of Grace, Covenant with Abraham, Covenant with David, New Covenant, and Covenant — Conditions of. The Abraham covenant subcategory associates 23 verses including Genesis 12:1–3, Genesis 15:9–21, Genesis 17:1–14, Romans 4:13, and Galatians 3:17. The New Covenant subcategory includes Jeremiah 31:31–34, Hebrews 8:6–13, and Luke 22:20.
+
+---
+
+## How Subscribers Use It
+
+**The pastor drafting Sunday's sermon on Wednesday afternoon.** She's preaching on Psalm 23 and wants to know how the Hebrew behind "restore my soul" has been translated across history. She asks her AI assistant to pull the Strong's entry for the root verb, compare how KJV, ASV, and YLT each render it, and surface the cross-references that echo the same idea in the New Testament. The server returns the BDB definition, the morphological parsing, all five translation renderings, and a set of linked passages — in one response. She picks up the same conversation Friday morning to chase down the Isaiah parallels she bookmarked.
+
+**The seminary student writing an exegesis paper on Ephesians 2:8–9.** He needs to demonstrate awareness of the Greek grammar, the lexical range of *charis*, and how the passage connects to the broader Pauline corpus. He asks for a word study on the Greek for "grace," then separately queries the cross-references to see which passages the OpenBible dataset links to this verse. He uses the semantic search to find thematically related passages that don't share the exact word, and pastes the structured results directly into his annotated bibliography notes. The entire research thread lives in one session so he can pick up the next day without losing context.
+
+**The small group leader preparing a discussion on forgiveness.** She wants more than a keyword search — she wants the topical shape of what the Bible teaches. She opens with Nave's for "forgiveness," scans the subcategories and associated verses, then asks the server to compare how three translations render a verse that surprised her. When her group asks on Thursday night why a particular translation says "pardon" where others say "forgive," she already has the lexical answer ready.
 
 ---
 
