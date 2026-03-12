@@ -1,7 +1,7 @@
 {
   "name": "bible",
   "version": "1.3.1",
-  "description": "Scholarly Bible study as AI-native MCP tools — semantic search across 155K verse embeddings, Strong's concordance with BDB/Thayer lexicon definitions, 606K cross-references, morphology, Nave's topical index, and translation comparison across KJV, WEB, ASV, YLT, and Darby. Chain tools together in a single AI conversation.",
+  "description": "Study the Bible at scholarly depth — semantic search, original-language word studies, and cross-reference traversal in a single AI conversation. Explore 155,510 verses across five complete translations (KJV, WEB, ASV, YLT, Darby) without switching tabs. Look up any word in its Hebrew or Greek original, read the BDB or Thayer lexicon definition, and trace every occurrence across the canon. Follow 606,140 cross-references to find how scripture interprets scripture. Research any subject through Nave's Topical Bible, with 5,319 curated categories organized by theme, person, and topic. Run full-text keyword searches from Genesis to Revelation, or describe a concept in plain language and get semantically matched passages ranked by meaning. With 17,543 Strong's concordance entries and morphology records for 447,734 words, the scholarly depth that once required specialized desktop software is now accessible through natural conversation.",
   "homepage": "https://github.com/mctx-ai/bible-mcp-server",
   "repository": {
     "type": "git",
