@@ -4,6 +4,8 @@
  * Built with @mctx-ai/mcp-server. Provides Bible text lookup, semantic search,
  * cross-references, word study, concordance, and topical discovery across 5
  * public domain translations (KJV, WEB, ASV, YLT, Darby).
+ *
+ * Version 1.3.6
  */
 
 import { createServer } from '@mctx-ai/mcp-server';
