@@ -1,6 +1,6 @@
 {
   "name": "bible-study",
-  "version": "1.3.6",
+  "version": "1.3.7",
   "description": "Study the Bible in its original Hebrew and Greek — semantic search, word studies, cross-references, and five translations in one conversation. Ask any question about what Scripture says and get grounded, cited answers: What does the Bible say about anxiety? Show me every verse in Romans about faith. What is the Hebrew word behind lovingkindness in Psalm 23? Compare how KJV and WEB translate John 3:16. What passages relate to forgiveness? Trace the word grace through Paul's letters. How many times does faith appear in Paul's letters? Covers 155,510 verses across KJV, WEB, ASV, YLT, and Darby with 606,140 cross-references, 17,543 Strong's entries, BDB and Thayer lexicon definitions, and Nave's 5,319 topical categories.",
   "homepage": "https://github.com/mctx-ai/bible-mcp-server",
   "repository": {
