@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A **Bible study MCP server** built with `@mctx-ai/mcp-server` framework, deployed on the mctx.ai platform at `bible.mctx.ai`.
+A **Bible study MCP server** built with `@mctx-ai/mcp-server` framework, deployed on the mctx.ai platform at `bible-study.mctx.ai`.
 
 **Purpose:** Deep Bible study for MCP-compatible AI clients. 155,510 verses across 5 public domain translations (KJV, WEB, ASV, YLT, Darby). Semantic search via 155K+ vector embeddings. 606,140 cross-references. 17,543 Strong's concordance entries with Hebrew and Greek lexicon definitions. 447,734 morphology records. 5,319 Nave's Topical Bible categories. Full-text search via FTS5.
 
