@@ -55,7 +55,10 @@ async function loadTranslations(): Promise<void> {
 }
 
 export function getTranslation(abbrev: string): Translation | undefined {
-  return translationCache.get(abbrev.toUpperCase());
+  const upper = abbrev.toUpperCase();
+  // Support "Darby" as a case-insensitive alias for DBY
+  const normalized = upper === 'DARBY' ? 'DBY' : upper;
+  return translationCache.get(normalized);
 }
 
 export function getAllTranslations(): Translation[] {

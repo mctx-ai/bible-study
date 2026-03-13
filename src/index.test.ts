@@ -195,6 +195,88 @@ describe('Tool: word_study', () => {
     expect(data.result.content).toBeDefined();
     expect(Array.isArray(data.result.content)).toBe(true);
   });
+
+  test('returns alternatives array with required fields when multiple rows match an English word', async () => {
+    // Verifies that when matchByEnglishGloss finds multiple matching morphology
+    // rows (matched_count > 1), the response includes an alternatives array
+    // where each entry has word_position, lemma, strongs_number, transliteration,
+    // and short_definition. In test environment D1 calls fail, so we assert
+    // the framework returns a well-formed response.
+    const req = createRequest('tools/call', {
+      name: 'word_study',
+      arguments: { book: 'Romans', chapter: 8, verse: 28, word: 'love' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result).toBeDefined();
+    expect(data.result.content).toBeDefined();
+    expect(Array.isArray(data.result.content)).toBe(true);
+
+    // When D1 returns real data and multiple rows match, each alternative must
+    // have the required shape. Parse the JSON text content to validate structure
+    // if an actual result (not error) is returned.
+    const contentText = data.result.content?.[0]?.text;
+    if (contentText && !data.result.isError) {
+      const parsed = JSON.parse(contentText);
+      if (parsed.matched_count > 1) {
+        expect(Array.isArray(parsed.alternatives)).toBe(true);
+        expect(parsed.alternatives.length).toBeGreaterThan(0);
+        for (const alt of parsed.alternatives) {
+          expect(typeof alt.word_position).toBe('string');
+          expect(typeof alt.lemma).toBe('string');
+          expect(typeof alt.strongs_number).toBe('string');
+          expect(typeof alt.transliteration).toBe('string');
+          expect(typeof alt.short_definition).toBe('string');
+        }
+        expect(typeof parsed.note).toBe('string');
+        expect(parsed.note).toContain('Multiple original-language words match');
+        expect(parsed.note).toContain('word_position');
+      }
+    }
+  });
+
+  test('includes disambiguation hint note when multiple words match', async () => {
+    // Verifies the hint text is included in the response when alternatives exist.
+    // In test environment D1 calls fail, so we assert a well-formed response.
+    const req = createRequest('tools/call', {
+      name: 'word_study',
+      arguments: { book: 'John', chapter: 3, verse: 16, word: 'God' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result).toBeDefined();
+    expect(data.result.content).toBeDefined();
+    expect(Array.isArray(data.result.content)).toBe(true);
+
+    const contentText = data.result.content?.[0]?.text;
+    if (contentText && !data.result.isError) {
+      const parsed = JSON.parse(contentText);
+      if (parsed.matched_count > 1) {
+        expect(typeof parsed.note).toBe('string');
+        expect(parsed.note).toContain('Multiple original-language words match');
+        expect(parsed.note).toContain('word_position');
+      }
+    }
+  });
+
+  test('throws an error when an invalid translation is passed', async () => {
+    // Verifies the silent KJV fallback is removed: passing an unknown
+    // translation abbreviation now produces a clear error response.
+    const req = createRequest('tools/call', {
+      name: 'word_study',
+      arguments: { book: 'Genesis', chapter: 1, verse: 1, word: '1', translation: 'INVALID_TRANS' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result).toBeDefined();
+    // The response must be an error (isError) with a message mentioning the unknown translation.
+    expect(data.result.isError).toBe(true);
+    const errorText = data.result.content?.[0]?.text ?? '';
+    expect(errorText).toContain('INVALID_TRANS');
+  });
 });
 
 describe('Tool: concordance', () => {

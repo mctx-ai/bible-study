@@ -23,6 +23,7 @@ import {
 const translationRows = [
   { id: 1, abbreviation: 'KJV', name: 'King James Version', year: 1769 },
   { id: 2, abbreviation: 'WEB', name: 'World English Bible', year: 2000 },
+  { id: 3, abbreviation: 'DBY', name: 'Darby Bible', year: 1890 },
 ];
 
 const bookRows = [
@@ -94,7 +95,7 @@ describe('ensureInitialized()', () => {
     const kjv = getTranslation('KJV');
     expect(kjv).toBeDefined();
     expect(kjv?.name).toBe('King James Version');
-    expect(getAllTranslations()).toHaveLength(2);
+    expect(getAllTranslations()).toHaveLength(3);
 
     // Books cache populated (by name, abbreviation, and alias).
     expect(resolveBook('Genesis')).toBeDefined();
@@ -114,6 +115,32 @@ describe('ensureInitialized()', () => {
 
     // Query called only during the first initialization.
     expect(d1.query).toHaveBeenCalledTimes(3);
+  });
+
+  test('getTranslation resolves "Darby" as a case-insensitive alias for DBY', async () => {
+    mockD1Success();
+
+    await ensureInitialized();
+
+    // Both DBY and Darby should resolve to the same translation
+    const dby = getTranslation('DBY');
+    expect(dby).toBeDefined();
+    expect(dby?.abbreviation).toBe('DBY');
+    expect(dby?.name).toBe('Darby Bible');
+
+    // Case-insensitive alias: "Darby" should resolve to DBY
+    const darby = getTranslation('Darby');
+    expect(darby).toBeDefined();
+    expect(darby?.abbreviation).toBe('DBY');
+    expect(darby?.name).toBe('Darby Bible');
+
+    // Verify they're the same object reference
+    expect(dby).toBe(darby);
+
+    // Test case insensitivity
+    expect(getTranslation('darby')).toBeDefined();
+    expect(getTranslation('DARBY')).toBeDefined();
+    expect(getTranslation('DaRbY')).toBeDefined();
   });
 
   test('concurrent calls share the same promise (init() runs only once)', async () => {
@@ -152,7 +179,7 @@ describe('ensureInitialized()', () => {
     await ensureInitialized(); // should swallow error internally
 
     // Cache must still be empty after failure (initialized stays false).
-    expect(getAllTranslations()).toHaveLength(0);
+    expect(getAllTranslations()).toHaveLength(0); // translations query failed, so no translations cached
 
     // Configure the successful retry — all 3 queries.
     mockD1Success();
@@ -160,7 +187,7 @@ describe('ensureInitialized()', () => {
     await ensureInitialized(); // should trigger init() again
 
     // After retry, cache is populated.
-    expect(getAllTranslations()).toHaveLength(2);
+    expect(getAllTranslations()).toHaveLength(3);
     // Total: 3 (first failed attempt) + 3 (successful retry) = 6.
     expect(d1.query).toHaveBeenCalledTimes(6);
   });
@@ -176,6 +203,6 @@ describe('ensureInitialized()', () => {
     // A subsequent call must not hit d1.query again, confirming the flag is set.
     await ensureInitialized();
     expect(d1.query).toHaveBeenCalledTimes(3);
-    expect(getAllTranslations()).toHaveLength(2);
+    expect(getAllTranslations()).toHaveLength(3);
   });
 });

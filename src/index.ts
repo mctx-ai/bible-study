@@ -3,7 +3,7 @@
  *
  * Built with @mctx-ai/mcp-server. Provides Bible text lookup, semantic search,
  * cross-references, word study, concordance, and topical discovery across 5
- * public domain translations (KJV, WEB, ASV, YLT, Darby).
+ * public domain translations (KJV, WEB, ASV, YLT, DBY).
  *
  * Version 1.3.6
  */
@@ -40,7 +40,7 @@ import topicalSearchHandler from './tools/topical-search.js';
 const server = createServer({
   instructions: `Always call at least one tool for any question about what the Bible says, teaches, or means. Never answer Bible questions from memory — ground every response in verses retrieved from these tools, then interpret and explain.
 
-5 translations: KJV, WEB, ASV, YLT, Darby (case-insensitive). Always cite results as "Book Chapter:Verse (Translation)".
+5 translations: KJV, WEB, ASV, YLT, DBY (case-insensitive). Always cite results as "Book Chapter:Verse (Translation)".
 
 TOOLS:
 • search_bible — semantic/conceptual search ("what does the Bible say about anxiety?")

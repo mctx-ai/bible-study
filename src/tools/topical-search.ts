@@ -44,6 +44,7 @@ interface NaveVerseRow {
   translation_abbrev: string;
   text: string;
   note: string | null;
+  topic_name: string;
 }
 
 interface VerseRow {
@@ -55,12 +56,34 @@ interface VerseRow {
   text: string;
 }
 
+// ─── Nave's topic relevance scoring ───────────────────────────────────────────
+
+// Returns a [0, 1] relevance score for a Nave's topic name against the query.
+// Exact match → 1.0; topic name starts with query → 0.8; query is a word in
+// topic name → 0.6; topic name contains query → 0.4; partial substring → 0.2.
+// This gives a simple but meaningful ordering within the Nave's-only pool.
+function naveTopicRelevance(topicName: string, query: string): number {
+  const t = topicName.toLowerCase();
+  const q = query.toLowerCase();
+  if (t === q) return 1.0;
+  if (t.startsWith(q)) return 0.8;
+  const words = t.split(/\s+/);
+  if (words.some((w) => w === q)) return 0.6;
+  if (t.includes(q)) return 0.4;
+  return 0.2;
+}
+
 // ─── Nave's D1 search ─────────────────────────────────────────────────────────
+
+interface NaveSearchEntry {
+  result: TopicalResult;
+  relevance: number;
+}
 
 async function searchNaves(
   topic: string,
   limit: number,
-): Promise<Map<string, TopicalResult>> {
+): Promise<Map<string, NaveSearchEntry>> {
   // Normalize the topic the same way the ETL does: lowercase.
   const normalized = topic.toLowerCase();
 
@@ -85,7 +108,8 @@ async function searchNaves(
        ntv.verse        AS verse,
        t.abbreviation   AS translation_abbrev,
        v.text           AS text,
-       ntv.note         AS note
+       ntv.note         AS note,
+       nt.name          AS topic_name
      FROM nave_topic_verses ntv
      JOIN nave_topics nt  ON nt.id = ntv.topic_id
      JOIN books b         ON b.id  = ntv.book_id
@@ -100,11 +124,19 @@ async function searchNaves(
     [...translationParams, `%${escaped}%`, limit * 3],
   );
 
-  const resultMap = new Map<string, TopicalResult>();
+  const resultMap = new Map<string, NaveSearchEntry>();
 
   for (const row of result.results) {
     const r = row as unknown as NaveVerseRow;
     const key = `${r.book_name.trim().toLowerCase()}:${r.chapter}:${r.verse}`;
+
+    // Keep the entry with highest relevance when the same verse appears under
+    // multiple matching topics.
+    const relevance = naveTopicRelevance(r.topic_name, topic);
+    if (resultMap.has(key)) {
+      const existing = resultMap.get(key)!;
+      if (relevance <= existing.relevance) continue;
+    }
 
     const citation: Citation = {
       book: r.book_name,
@@ -123,7 +155,7 @@ async function searchNaves(
       entry.note = r.note;
     }
 
-    resultMap.set(key, entry);
+    resultMap.set(key, { result: entry, relevance });
   }
 
   return resultMap;
@@ -238,13 +270,13 @@ async function fetchVerseTexts(
 // "Consecutive" means verse numbers are sequential (e.g., 3,4 or 7,8).
 // This prevents a dense Nave's cluster from monopolizing the result set.
 function capConsecutiveVerses(
-  navesMap: Map<string, TopicalResult>,
-): Map<string, TopicalResult> {
+  navesMap: Map<string, NaveSearchEntry>,
+): Map<string, NaveSearchEntry> {
   // Group entries by book:chapter.
-  const byChapter = new Map<string, Array<{ key: string; verse: number; entry: TopicalResult }>>();
+  const byChapter = new Map<string, Array<{ key: string; verse: number; entry: NaveSearchEntry }>>();
 
   for (const [key, entry] of navesMap) {
-    const { book, chapter, verse } = entry.citation;
+    const { book, chapter, verse } = entry.result.citation;
     const chapterKey = `${book.trim().toLowerCase()}:${chapter}`;
     if (!byChapter.has(chapterKey)) {
       byChapter.set(chapterKey, []);
@@ -252,7 +284,7 @@ function capConsecutiveVerses(
     byChapter.get(chapterKey)!.push({ key, verse, entry });
   }
 
-  const capped = new Map<string, TopicalResult>();
+  const capped = new Map<string, NaveSearchEntry>();
 
   for (const group of byChapter.values()) {
     // Sort by verse number so consecutive detection is straightforward.
@@ -323,8 +355,8 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
     const unifiedKey = `${verseRow.book_name.trim().toLowerCase()}:${verseRow.chapter}:${verseRow.verse}`;
 
     if (navesResultsCapped.has(unifiedKey)) {
-      // Mark as 'both' in the Nave's map; it will be included via the Nave's pool.
-      navesResultsCapped.get(unifiedKey)!.source = 'both';
+      // Mark as 'both' in the Nave's map; it will be included via the 'both' pool.
+      navesResultsCapped.get(unifiedKey)!.result.source = 'both';
     } else {
       const citation: Citation = {
         book: verseRow.book_name,
@@ -340,7 +372,7 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
     }
   }
 
-  // Sort semantic entries by descending vector score.
+  // Sort semantic-only entries by descending vector score.
   semanticEntries.sort((a, b) => {
     const scoreA = semanticScoreByKey.get(a.unifiedKey) ?? 0;
     const scoreB = semanticScoreByKey.get(b.unifiedKey) ?? 0;
@@ -358,29 +390,58 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
     }
   }
 
-  // 60/40 budget split: Nave's gets 60%, semantic gets 40%.
-  const naveBudget = Math.round(limit * 0.6);
-  const semanticBudget = limit - naveBudget;
+  // Split Nave's results into 'both' (matched semantic too) and 'naves'-only.
+  const bothEntries: Array<{ unifiedKey: string; result: TopicalResult }> = [];
+  const navesOnlyEntries: Array<{ unifiedKey: string; relevance: number; result: TopicalResult }> = [];
 
-  const navesPool = Array.from(navesResultsCapped.values());
+  for (const [key, entry] of navesResultsCapped) {
+    if (entry.result.source === 'both') {
+      bothEntries.push({ unifiedKey: key, result: entry.result });
+    } else {
+      navesOnlyEntries.push({ unifiedKey: key, relevance: entry.relevance, result: entry.result });
+    }
+  }
+
+  // Sort 'both' entries by descending semantic score — strongest combined signal first.
+  bothEntries.sort((a, b) => {
+    const scoreA = semanticScoreByKey.get(a.unifiedKey) ?? 0;
+    const scoreB = semanticScoreByKey.get(b.unifiedKey) ?? 0;
+    return scoreB - scoreA;
+  });
+
+  // Sort Nave's-only entries by descending topic relevance score.
+  navesOnlyEntries.sort((a, b) => b.relevance - a.relevance);
+
+  // Adaptive budget split:
+  //   - 'both' entries always come first (capped at limit).
+  //   - Remaining slots use a 60/40 split between Nave's-only and semantic.
+  //   - If Nave's-only has fewer results than its budget, ALL remaining slots
+  //     go to semantic (and vice versa).
+  const remainingAfterBoth = Math.max(0, limit - bothEntries.length);
+  const navesOnlyBudget = Math.round(remainingAfterBoth * 0.6);
+  const semanticBudget = remainingAfterBoth - navesOnlyBudget;
+
+  const navesOnlyPool = navesOnlyEntries.map((e) => e.result);
   const semanticPool = uniqueSemanticEntries.map((e) => e.result);
 
-  const naveSlice = navesPool.slice(0, naveBudget);
+  const navesOnlySlice = navesOnlyPool.slice(0, navesOnlyBudget);
   const semanticSlice = semanticPool.slice(0, semanticBudget);
 
   // Graceful degradation: unused slots from either source backfill from the other.
-  const naveOverflow = naveBudget - naveSlice.length;
+  const naveOnlyOverflow = navesOnlyBudget - navesOnlySlice.length;
   const semanticOverflow = semanticBudget - semanticSlice.length;
 
-  const extraSemantic = naveOverflow > 0
-    ? semanticPool.slice(semanticBudget, semanticBudget + naveOverflow)
+  const extraSemantic = naveOnlyOverflow > 0
+    ? semanticPool.slice(semanticBudget, semanticBudget + naveOnlyOverflow)
     : [];
   const extraNaves = semanticOverflow > 0
-    ? navesPool.slice(naveBudget, naveBudget + semanticOverflow)
+    ? navesOnlyPool.slice(navesOnlyBudget, navesOnlyBudget + semanticOverflow)
     : [];
 
+  // Final ordering: 'both' first (by semantic score), then remaining by relevance.
   const results = [
-    ...naveSlice,
+    ...bothEntries.map((e) => e.result),
+    ...navesOnlySlice,
     ...extraNaves,
     ...semanticSlice,
     ...extraSemantic,

@@ -31,6 +31,27 @@ interface SearchResult {
   total: number;
 }
 
+interface TranslationEntry {
+  abbreviation: string;
+  text: string;
+}
+
+interface GroupedVerseResult {
+  citation: {
+    book: string;
+    chapter: number;
+    verse: number;
+  };
+  score: number;
+  translations: TranslationEntry[];
+}
+
+interface GroupedSearchResult {
+  query: string;
+  results: GroupedVerseResult[];
+  total: number;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const DEFAULT_LIMIT = 10;
@@ -371,37 +392,45 @@ const searchBible: ToolHandler = async (args, _ask?) => {
     return result;
   }
 
-  // Build score map for annotation.
-  const scoreByLocation = new Map<string, number>();
-  for (const loc of uniqueLocations) {
-    scoreByLocation.set(`${loc.book_id}:${loc.chapter}:${loc.verse}`, loc.score);
-  }
-
   // Fetch all translations for the unique locations.
   const rows = await fetchVersesByLocations(uniqueLocations);
 
-  const results: VerseResult[] = rows.map((row) => {
-    const score =
-      scoreByLocation.get(`${row.book_id}:${row.chapter}:${row.verse}`) ?? 0;
-    const book = resolveBook(row.book_name) ?? ({ id: row.book_id, name: row.book_name } as Book);
-    const citation: Citation = makeCitation(
-      book,
-      row.chapter,
-      row.verse,
-      row.translation_abbrev
-    );
-    return { citation, text: row.text, score };
-  });
+  // Group rows by verse location, preserving score order from uniqueLocations.
+  const groupMap = new Map<string, GroupedVerseResult>();
+  for (const loc of uniqueLocations) {
+    const key = `${loc.book_id}:${loc.chapter}:${loc.verse}`;
+    groupMap.set(key, {
+      citation: { book: '', chapter: loc.chapter, verse: loc.verse },
+      score: loc.score,
+      translations: [],
+    });
+  }
 
-  // Group by score (verse location) descending, translations within each group sorted alphabetically.
-  results.sort((a, b) => {
-    const scoreDiff = b.score - a.score;
-    if (scoreDiff !== 0) return scoreDiff;
-    // Same verse location: sort by translation abbreviation.
-    return a.citation.translation.localeCompare(b.citation.translation);
-  });
+  for (const row of rows) {
+    const key = `${row.book_id}:${row.chapter}:${row.verse}`;
+    const group = groupMap.get(key);
+    if (!group) continue;
 
-  const output: SearchResult = {
+    // Populate book name from the first row for this location.
+    if (!group.citation.book) {
+      const book = resolveBook(row.book_name) ?? ({ id: row.book_id, name: row.book_name } as Book);
+      group.citation.book = book.name;
+    }
+
+    group.translations.push({ abbreviation: row.translation_abbrev, text: row.text });
+  }
+
+  // Sort translations within each group alphabetically.
+  for (const group of groupMap.values()) {
+    group.translations.sort((a, b) => a.abbreviation.localeCompare(b.abbreviation));
+  }
+
+  // Collect groups in score-descending order (uniqueLocations preserves this order).
+  const results: GroupedVerseResult[] = uniqueLocations
+    .map((loc) => groupMap.get(`${loc.book_id}:${loc.chapter}:${loc.verse}`))
+    .filter((g): g is GroupedVerseResult => g !== undefined);
+
+  const output: GroupedSearchResult = {
     query,
     results,
     total: results.length,
@@ -435,7 +464,7 @@ searchBible.input = {
   }),
   translation: T.string({
     description:
-      'Filter results to a specific translation abbreviation (e.g., "KJV", "WEB", "ASV", "YLT", "Darby"). When set, limit applies to total results.',
+      'Filter results to a specific translation abbreviation (e.g., "KJV", "WEB", "ASV", "YLT", "DBY"). When set, limit applies to total results.',
   }),
   book: T.string({
     description:

@@ -130,7 +130,7 @@ compareTranslations.annotations = {
 };
 
 compareTranslations.description =
-  'Show the same Bible passage side-by-side across all 5 translations (KJV, WEB, ASV, YLT, Darby). Useful when you want to see how different translators rendered a verse or passage.';
+  'Show the same Bible passage side-by-side across all 5 translations (KJV, WEB, ASV, YLT, DBY). Useful when you want to see how different translators rendered a verse or passage.';
 
 compareTranslations.input = {
   book: T.string({

@@ -46,6 +46,14 @@ interface OtherOccurrence {
   citation: Citation;
 }
 
+interface AlternativeMatch {
+  word_position: string;
+  lemma: string;
+  strongs_number: string;
+  transliteration: string;
+  short_definition: string;
+}
+
 interface WordStudyResult {
   original_word: string;
   strongs_number: string;
@@ -54,6 +62,7 @@ interface WordStudyResult {
   lexicon: LexiconDef;
   morphology: MorphologyInfo;
   matched_count: number;
+  alternatives?: AlternativeMatch[];
   other_occurrences: OtherOccurrence[];
   total_occurrences: number;
   citation: Citation;
@@ -73,8 +82,15 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
     translation?: string;
   };
 
-  // Resolve translation ID for verse text. Falls back to KJV when the
-  // user doesn't specify a translation or specifies an unknown one.
+  // Validate translation if provided; throw for unknown values instead of
+  // silently falling back to KJV (matches behavior of find-text and concordance).
+  if (translation !== undefined && !isValidTranslation(translation)) {
+    throw new Error(
+      `Unknown translation "${translation}". Use the bible://translations resource to list available translations.`
+    );
+  }
+
+  // Resolve translation ID for verse text. Defaults to KJV when omitted.
   const kjvTranslation = getTranslation('KJV');
   const kjvId = kjvTranslation?.id;
   if (!kjvId) {
@@ -82,7 +98,7 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
   }
   let verseTranslationId = kjvId;
   let verseTranslationAbbrev = 'KJV';
-  if (translation !== undefined && isValidTranslation(translation)) {
+  if (translation !== undefined) {
     const resolvedTranslation = getTranslation(translation);
     if (resolvedTranslation) {
       verseTranslationId = resolvedTranslation.id;
@@ -148,10 +164,12 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
   // 3b. Fall back: match English word against Strong's definition glosses.
   //    This avoids positional alignment between English and Hebrew/Greek text
   //    entirely — matching happens through meaning instead.
+  let glossMatchedRows: Record<string, unknown>[] = [];
   if (!matchedRow) {
-    const { first, count } = matchByEnglishGloss(wordParam, morphResult.results);
+    const { first, count, all } = matchByEnglishGloss(wordParam, morphResult.results);
     matchedRow = first;
     matchedCount = count;
+    glossMatchedRows = all;
   }
 
   if (!matchedRow) {
@@ -160,6 +178,20 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
         `Try a word position (e.g. "1", "2", "3") or an English word that appears in the verse.`
     );
   }
+
+  // Build alternatives when multiple rows matched an English gloss search.
+  // Each alternative provides enough context for the user (or AI client) to
+  // select the specific word they meant via its word_position.
+  const alternatives: AlternativeMatch[] =
+    matchedCount > 1
+      ? glossMatchedRows.map((row) => ({
+          word_position: String(row['word_position'] ?? ''),
+          lemma: (row['lemma'] as string) ?? '',
+          strongs_number: (row['strongs_number'] as string) ?? '',
+          transliteration: (row['transliteration'] as string) ?? '',
+          short_definition: (row['lexicon_short_def'] as string) ?? (row['strongs_definition'] as string) ?? '',
+        }))
+      : [];
 
   // 4. Extract strongs_number from matched morphology row.
   //    Hebrew particles, prefixes, and grammatical markers (definite article he,
@@ -201,6 +233,7 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
         parsing: (matchedRow['parsing'] as string) ?? '',
       },
       matched_count: matchedCount,
+      ...(alternatives.length > 0 && { alternatives }),
       other_occurrences: [],
       total_occurrences: 0,
       citation: sourceCitation,
@@ -288,6 +321,11 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
     'ORIG' // Morphology is translation-independent; use canonical marker.
   );
 
+  const disambiguationNote =
+    alternatives.length > 0
+      ? 'Multiple original-language words match. Use word_position value (e.g. "3") to select a specific word.'
+      : undefined;
+
   const result: WordStudyResult = {
     original_word: (strongsRow['original_word'] as string) ?? '',
     strongs_number: strongsNumber,
@@ -302,9 +340,11 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
       parsing: (matchedRow['parsing'] as string) ?? '',
     },
     matched_count: matchedCount,
+    ...(alternatives.length > 0 && { alternatives }),
     other_occurrences: otherOccurrences,
     total_occurrences: totalOccurrences,
     citation: sourceCitation,
+    ...(disambiguationNote && { note: disambiguationNote }),
   };
 
   return result;
@@ -438,12 +478,12 @@ function generateSuffixCandidates(word: string): string[] {
 function matchByEnglishGloss(
   wordParam: string,
   morphRows: Record<string, unknown>[]
-): { first: Record<string, unknown> | undefined; count: number } {
+): { first: Record<string, unknown> | undefined; count: number; all: Record<string, unknown>[] } {
   // Inner function: run all matching passes for a given target string.
-  // Returns the match result, or { first: undefined, count: 0 } on no match.
+  // Returns the match result, or { first: undefined, count: 0, all: [] } on no match.
   function tryMatch(
     target: string
-  ): { first: Record<string, unknown> | undefined; count: number } {
+  ): { first: Record<string, unknown> | undefined; count: number; all: Record<string, unknown>[] } {
     // Build a word-boundary regex so 'sin' doesn't match 'since'.
     const wordBoundaryRe = new RegExp(`\\b${escapeRegex(target)}\\b`, 'i');
 
@@ -464,7 +504,7 @@ function matchByEnglishGloss(
     // First pass: word-boundary match against Strong's gloss and lexicon defs.
     const glossMatches = morphRows.filter(matchesDefinitionFields);
     if (glossMatches.length > 0) {
-      return { first: glossMatches[0], count: glossMatches.length };
+      return { first: glossMatches[0], count: glossMatches.length, all: glossMatches };
     }
 
     // Second pass: word-boundary match against lemma (may be an English gloss
@@ -477,7 +517,7 @@ function matchByEnglishGloss(
       return false;
     });
     if (lemmaMatches.length > 0) {
-      return { first: lemmaMatches[0], count: lemmaMatches.length };
+      return { first: lemmaMatches[0], count: lemmaMatches.length, all: lemmaMatches };
     }
 
     // Third pass: substring match against all definition fields (broader fallback).
@@ -492,11 +532,11 @@ function matchByEnglishGloss(
         });
       });
       if (substringMatches.length > 0) {
-        return { first: substringMatches[0], count: substringMatches.length };
+        return { first: substringMatches[0], count: substringMatches.length, all: substringMatches };
       }
     }
 
-    return { first: undefined, count: 0 };
+    return { first: undefined, count: 0, all: [] };
   }
 
   const originalTarget = wordParam.toLowerCase();
@@ -512,7 +552,7 @@ function matchByEnglishGloss(
     if (candidateResult.first) return candidateResult;
   }
 
-  return { first: undefined, count: 0 };
+  return { first: undefined, count: 0, all: [] };
 }
 
 /** Escape special regex characters in a literal string. */
