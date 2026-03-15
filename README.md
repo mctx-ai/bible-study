@@ -10,7 +10,7 @@ Unlike asking your AI from general knowledge, this server gives your assistant a
 
 ## What You Get
 
-**Semantic search across 155,510 verses.** Describe a concept in plain language and receive passages that match the meaning, not just the exact keywords. "God's faithfulness despite human failure" finds relevant passages even when those words never appear together.
+**Semantic search across 155,510 verses.** Describe a concept in plain language and receive passages that match the meaning, not just the exact keywords. "God's faithfulness despite human failure" finds relevant passages even when those words never appear together. Topical searches also surface the Bible's major thematic witnesses — entire books and narrative arcs, not just individual verses.
 
 **Original-language word studies.** Look up any word in its Hebrew or Greek original. Get the Strong's number, transliteration, full BDB or Thayer lexicon definition, morphological parsing, and every other verse where that same word appears — all in one response.
 
@@ -18,7 +18,7 @@ Unlike asking your AI from general knowledge, this server gives your assistant a
 
 **606,140 cross-references.** For any verse, find the other passages that illuminate, echo, or expand on the same idea. Trace how a theme develops across both testaments without losing your place.
 
-**Nave's Topical Bible with 5,319 categories.** Research what the Bible says about patience, covenant, prayer, or any of thousands of subjects, persons, and themes. Each topic connects to curated verse associations organized by the editors of Nave's original index.
+**Nave's Topical Bible with 5,319 categories.** Research what the Bible says about patience, covenant, prayer, or any of thousands of subjects, persons, and themes. Each topic connects to curated verse associations organized by the editors of Nave's original index. For broader thematic queries, the system identifies major biblical witnesses — books and narratives that are central treatments of your topic (such as Job for suffering, or the Psalms for lament) — alongside individual verse results.
 
 **Full-text keyword search.** Search for an exact word or phrase across all translations or a specific one, from Genesis to Revelation. Results come back in canonical order.
 
@@ -58,6 +58,7 @@ You want to understand what the Hebrew or Greek actually says beneath the Englis
 You want to know what the Bible teaches on a subject, or find passages that match a meaning rather than a keyword.
 - "What does the Bible say about forgiveness? Use Nave's topical index."
 - "Find passages about God's faithfulness during suffering — search by meaning, not just keyword."
+- "What does the Bible say about suffering and God's faithfulness?"
 - "Look up 'patience' in Nave's and show me the associated verses."
 - "Search semantically for verses about light overcoming darkness."
 
@@ -82,6 +83,12 @@ You are preparing to preach or teach and need cross-references, lexical support,
 **Nave's Topical search for "Covenant":**
 
 > Nave's Topical Bible lists **Covenant** as a primary category with subcategories including: Covenant of Grace, Covenant with Abraham, Covenant with David, New Covenant, and Covenant — Conditions of. The Abraham covenant subcategory associates 23 verses including Genesis 12:1–3, Genesis 15:9–21, Genesis 17:1–14, Romans 4:13, and Galatians 3:17. The New Covenant subcategory includes Jeremiah 31:31–34, Hebrews 8:6–13, and Luke 22:20.
+
+**Topical search for "suffering and God's faithfulness":**
+
+> **Major witnesses:** **Job** — 34 topical references across 12 chapters, the Bible's central sustained treatment of righteous suffering and divine response. **Psalms** — 28 references across 15 chapters, covering lament, crying out, divine refuge, and trust under affliction.
+>
+> **Verse results:** 2 Corinthians 1:4 — God comforts us in all our affliction (Nave's: AFFLICTION + Semantic). 1 Peter 4:19 — let those who suffer according to God's will entrust their souls to a faithful Creator (Semantic). Job 1:21 — the Lord gave, and the Lord has taken away; blessed be the name of the Lord (Nave's: SUFFERING).
 
 ---
 
