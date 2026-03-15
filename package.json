@@ -42,6 +42,7 @@
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
     "data:acquire": "tsx scripts/acquire-data.ts",
+    "acquire:net": "npx tsx scripts/acquire-net.ts",
     "etl:bible": "tsx scripts/etl-bible-text.ts",
     "etl:morphology": "tsx scripts/etl-morphology.ts",
     "etl:crossrefs": "tsx scripts/etl-crossrefs.ts",

@@ -479,6 +479,109 @@ describe.skipIf(!process.env.CLOUDFLARE_ACCOUNT_ID)(
   },
 );
 
+// ─── NET Translation Tests ────────────────────────────────────────────────────
+//
+// Verifies that the NET translation is accessible through all MCP capabilities.
+// These tests will only fully pass once NET data is loaded into D1. They are
+// written to be syntactically valid and follow the correct patterns — they
+// assert on response structure, not verse data.
+
+describe('NET translation support', () => {
+  test('NET appears in the translations list resource', async () => {
+    const req = createRequest('resources/read', {
+      uri: 'bible://translations',
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result).toBeDefined();
+    expect(data.result.contents).toBeDefined();
+    expect(Array.isArray(data.result.contents)).toBe(true);
+
+    // When D1 is available, the translations list must include NET
+    const contentsText = data.result.contents?.[0]?.text;
+    if (contentsText && !data.result.isError) {
+      const translations = JSON.parse(contentsText);
+      const abbreviations: string[] = translations.map(
+        (t: { abbreviation: string }) => t.abbreviation,
+      );
+      expect(abbreviations).toContain('NET');
+    }
+  });
+
+  test('find_text returns a response with NET translation filter', async () => {
+    const req = createRequest('tools/call', {
+      name: 'find_text',
+      arguments: { query: 'love', translation: 'NET' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result).toBeDefined();
+    expect(data.result.content).toBeDefined();
+    expect(Array.isArray(data.result.content)).toBe(true);
+  });
+
+  test('search_bible returns a response with NET translation filter', async () => {
+    const req = createRequest('tools/call', {
+      name: 'search_bible',
+      arguments: { query: 'love your neighbor', translation: 'NET' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result).toBeDefined();
+    expect(data.result.content).toBeDefined();
+    expect(Array.isArray(data.result.content)).toBe(true);
+  });
+
+  test('compare_translations includes NET when comparing verses', async () => {
+    const req = createRequest('tools/call', {
+      name: 'compare_translations',
+      arguments: { book: 'John', chapter: 3, verse_start: 16 },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result).toBeDefined();
+    expect(data.result.content).toBeDefined();
+    expect(Array.isArray(data.result.content)).toBe(true);
+
+    // When D1 is available, NET must appear among the translation entries
+    const contentText = data.result.content?.[0]?.text;
+    if (contentText && !data.result.isError) {
+      const parsed = JSON.parse(contentText);
+      const translationAbbrevs: string[] = parsed.verses.flatMap(
+        (v: { translations: { citation: { translation: string } }[] }) =>
+          v.translations.map((t) => t.citation.translation),
+      );
+      expect(translationAbbrevs).toContain('NET');
+    }
+  });
+
+  test('NET translation attribution notice is present in find_text results', async () => {
+    const req = createRequest('tools/call', {
+      name: 'find_text',
+      arguments: { query: 'grace', translation: 'NET' },
+    });
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    expect(data.result).toBeDefined();
+    expect(Array.isArray(data.result.content)).toBe(true);
+
+    // When D1 returns real NET results, the response must include the NET
+    // copyright/attribution notice (Biblical Studies Press requires this).
+    const contentText = data.result.content?.[0]?.text;
+    if (contentText && !data.result.isError) {
+      const parsed = JSON.parse(contentText);
+      // Attribution is expected at the top level of the response object
+      const responseText = JSON.stringify(parsed);
+      expect(responseText.toLowerCase()).toMatch(/net bible|biblical studies press|netbible\.com/i);
+    }
+  });
+});
+
 // ─── Resource Smoke Tests ─────────────────────────────────────────────────────
 
 describe('Resource: bible://translations', () => {

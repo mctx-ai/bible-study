@@ -46,6 +46,7 @@ const TRANSLATIONS: TranslationMeta[] = [
   { id: 3, abbreviation: 'ASV', name: 'American Standard Version', year: 1901, csvFile: 'ASV.csv' },
   { id: 4, abbreviation: 'YLT', name: "Young's Literal Translation", year: 1898, csvFile: 'YLT.csv' },
   { id: 5, abbreviation: 'DBY', name: 'Darby Bible', year: 1890, csvFile: 'Darby.csv' },
+  { id: 6, abbreviation: 'NET', name: 'New English Translation', year: 2003, csvFile: 'NET.csv' },
 ];
 
 // ---------------------------------------------------------------------------
