@@ -3,23 +3,17 @@
 #
 # Admin-only script for version bumps (requires branch protection bypass).
 #
-# What: Reads current version or bumps it, syncs package-lock.json, commits
-#       independently on both main and release (same version, same message).
+# What: Reads current version or bumps it, syncs package-lock.json, commits to main.
 #
 # Usage:
 #   ./admin/version               # Show current version
 #   ./admin/version patch|minor|major|X.Y.Z [--push]  # Bump and optionally push
 #
 # Flags:
-#   --push                        Push both main and release after committing
+#   --push                        Push main after committing
 #   --help, -h                    Show this message
 #
-# Flow: Updates package.json → syncs lockfile → commits on main → switches to
-#       release → applies same version bump independently → commits → switches
-#       back to main → optionally pushes both branches.
-#
-# Note: Each branch receives its own independent version bump commit so that
-#       divergence in non-version fields of package.json does not cause conflicts.
+# Flow: Updates package.json → syncs lockfile → commits on main → optionally pushes.
 
 set -euo pipefail
 
@@ -27,7 +21,6 @@ set -euo pipefail
 # Constants
 # ---------------------------------------------------------------------------
 MAIN_BRANCH="main"
-RELEASE_BRANCH="release"
 
 # ---------------------------------------------------------------------------
 # Read current version (always available)
@@ -56,7 +49,7 @@ usage() {
   echo "  ./admin/version                  Show current version"
   echo "  ./admin/version patch            Bump patch version"
   echo "  ./admin/version minor            Bump minor version"
-  echo "  ./admin/version patch --push     Bump and push both branches"
+  echo "  ./admin/version patch --push     Bump and push main"
   echo "  ./admin/version 1.2.3            Set explicit version"
   exit "$exit_code"
 }
@@ -96,12 +89,6 @@ fi
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "Error: working tree is not clean. Commit or stash changes before bumping."
-  exit 1
-fi
-
-if ! git show-ref --quiet "refs/heads/$RELEASE_BRANCH"; then
-  echo "Error: local branch '$RELEASE_BRANCH' does not exist."
-  echo "Run: git fetch origin $RELEASE_BRANCH:$RELEASE_BRANCH"
   exit 1
 fi
 
@@ -175,28 +162,6 @@ echo "Committing: ${commit_message}"
 git commit -m "$commit_message"
 
 # ---------------------------------------------------------------------------
-# Apply the same version bump independently on release
-# ---------------------------------------------------------------------------
-echo ""
-echo "Switching to '$RELEASE_BRANCH'..."
-git switch "$RELEASE_BRANCH"
-
-echo "Updating package.json on '$RELEASE_BRANCH'..."
-npm pkg set version="$next_version"
-
-echo "Syncing package-lock.json on '$RELEASE_BRANCH'..."
-npm install --package-lock-only --ignore-scripts
-
-echo "Staging package.json and package-lock.json..."
-git add package.json package-lock.json
-
-echo "Committing: ${commit_message}"
-git commit -m "$commit_message"
-
-echo "Switching back to '$MAIN_BRANCH'..."
-git switch "$MAIN_BRANCH"
-
-# ---------------------------------------------------------------------------
 # Push (optional)
 # ---------------------------------------------------------------------------
 if [[ "$push_branches" == true ]]; then
@@ -204,16 +169,13 @@ if [[ "$push_branches" == true ]]; then
   echo "Pushing '$MAIN_BRANCH'..."
   git push origin "$MAIN_BRANCH"
 
-  echo "Pushing '$RELEASE_BRANCH'..."
-  git push origin "$RELEASE_BRANCH"
-
   echo ""
-  echo "Done. Version $next_version pushed to both '$MAIN_BRANCH' and '$RELEASE_BRANCH'."
+  echo "Done. Version $next_version pushed to '$MAIN_BRANCH'."
 else
   echo ""
   echo "Done. Version $next_version committed locally."
-  echo "Run with --push to push both '$MAIN_BRANCH' and '$RELEASE_BRANCH', or push manually:"
-  echo "  git push origin $MAIN_BRANCH $RELEASE_BRANCH"
+  echo "Run with --push to push '$MAIN_BRANCH', or push manually:"
+  echo "  git push origin $MAIN_BRANCH"
 fi
 
 # ---------------------------------------------------------------------------
