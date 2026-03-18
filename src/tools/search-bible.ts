@@ -61,6 +61,12 @@ const MAX_LIMIT = 20;
 // deduplication across translations (up to 5 translations per verse).
 const VECTORIZE_OVERFETCH_MULTIPLIER = 8;
 
+// D1 limits bound parameters to 100 per statement. Each verse location
+// requires 3 parameters (book_id, chapter, verse). Cap chunk size at 30
+// (30 * 3 = 90 params) to leave headroom for additional parameters like
+// translation_id.
+const LOCATION_CHUNK_SIZE = 30;
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function buildVectorizeFilter(
@@ -123,47 +129,64 @@ async function fetchVersesByTranslation(
 ): Promise<D1VerseRow[]> {
   if (locations.length === 0) return [];
 
-  // Build a single query with parameterized IN-like conditions using OR.
-  // D1 doesn't support row constructors, so expand to individual conditions.
-  const conditions = locations
-    .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ?)')
-    .join(' OR ');
+  // Chunk locations to stay within D1's 100-parameter-per-statement limit.
+  // Each location uses 3 params + 1 for translationId per chunk.
+  const chunks: Array<typeof locations> = [];
+  for (let i = 0; i < locations.length; i += LOCATION_CHUNK_SIZE) {
+    chunks.push(locations.slice(i, i + LOCATION_CHUNK_SIZE));
+  }
 
-  const params: unknown[] = locations.flatMap((loc) => [
-    loc.book_id,
-    loc.chapter,
-    loc.verse,
-  ]);
-  params.push(translationId);
+  const allRows: D1VerseRow[] = [];
 
-  const sql = `
-    SELECT
-      v.book_id,
-      v.chapter,
-      v.verse,
-      v.translation_id,
-      v.text,
-      b.name AS book_name,
-      t.abbreviation AS translation_abbrev
-    FROM verses v
-    JOIN books b ON b.id = v.book_id
-    JOIN translations t ON t.id = v.translation_id
-    WHERE (${conditions})
-      AND v.translation_id = ?
-    ORDER BY b.canonical_order, v.chapter, v.verse
-  `;
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      // Build a single query with parameterized IN-like conditions using OR.
+      // D1 doesn't support row constructors, so expand to individual conditions.
+      const conditions = chunk
+        .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ?)')
+        .join(' OR ');
 
-  const result = await d1.query(sql, params);
+      const params: unknown[] = chunk.flatMap((loc) => [
+        loc.book_id,
+        loc.chapter,
+        loc.verse,
+      ]);
+      params.push(translationId);
 
-  return result.results.map((row) => ({
-    book_id: row['book_id'] as number,
-    chapter: row['chapter'] as number,
-    verse: row['verse'] as number,
-    translation_id: row['translation_id'] as number,
-    text: row['text'] as string,
-    book_name: row['book_name'] as string,
-    translation_abbrev: row['translation_abbrev'] as string,
-  }));
+      const sql = `
+        SELECT
+          v.book_id,
+          v.chapter,
+          v.verse,
+          v.translation_id,
+          v.text,
+          b.name AS book_name,
+          t.abbreviation AS translation_abbrev
+        FROM verses v
+        JOIN books b ON b.id = v.book_id
+        JOIN translations t ON t.id = v.translation_id
+        WHERE (${conditions})
+          AND v.translation_id = ?
+        ORDER BY b.canonical_order, v.chapter, v.verse
+      `;
+
+      const result = await d1.query(sql, params);
+
+      const rows = result.results.map((row) => ({
+        book_id: row['book_id'] as number,
+        chapter: row['chapter'] as number,
+        verse: row['verse'] as number,
+        translation_id: row['translation_id'] as number,
+        text: row['text'] as string,
+        book_name: row['book_name'] as string,
+        translation_abbrev: row['translation_abbrev'] as string,
+      }));
+
+      allRows.push(...rows);
+    })
+  );
+
+  return allRows;
 }
 
 async function fetchVersesByLocations(
@@ -171,43 +194,60 @@ async function fetchVersesByLocations(
 ): Promise<D1VerseRow[]> {
   if (locations.length === 0) return [];
 
-  const conditions = locations
-    .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ?)')
-    .join(' OR ');
+  // Chunk locations to stay within D1's 100-parameter-per-statement limit.
+  // Each location uses 3 params (book_id, chapter, verse) with no extra params.
+  const chunks: Array<typeof locations> = [];
+  for (let i = 0; i < locations.length; i += LOCATION_CHUNK_SIZE) {
+    chunks.push(locations.slice(i, i + LOCATION_CHUNK_SIZE));
+  }
 
-  const params: unknown[] = locations.flatMap((loc) => [
-    loc.book_id,
-    loc.chapter,
-    loc.verse,
-  ]);
+  const allRows: D1VerseRow[] = [];
 
-  const sql = `
-    SELECT
-      v.book_id,
-      v.chapter,
-      v.verse,
-      v.translation_id,
-      v.text,
-      b.name AS book_name,
-      t.abbreviation AS translation_abbrev
-    FROM verses v
-    JOIN books b ON b.id = v.book_id
-    JOIN translations t ON t.id = v.translation_id
-    WHERE (${conditions})
-    ORDER BY b.canonical_order, v.chapter, v.verse, t.abbreviation
-  `;
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      const conditions = chunk
+        .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ?)')
+        .join(' OR ');
 
-  const result = await d1.query(sql, params);
+      const params: unknown[] = chunk.flatMap((loc) => [
+        loc.book_id,
+        loc.chapter,
+        loc.verse,
+      ]);
 
-  return result.results.map((row) => ({
-    book_id: row['book_id'] as number,
-    chapter: row['chapter'] as number,
-    verse: row['verse'] as number,
-    translation_id: row['translation_id'] as number,
-    text: row['text'] as string,
-    book_name: row['book_name'] as string,
-    translation_abbrev: row['translation_abbrev'] as string,
-  }));
+      const sql = `
+        SELECT
+          v.book_id,
+          v.chapter,
+          v.verse,
+          v.translation_id,
+          v.text,
+          b.name AS book_name,
+          t.abbreviation AS translation_abbrev
+        FROM verses v
+        JOIN books b ON b.id = v.book_id
+        JOIN translations t ON t.id = v.translation_id
+        WHERE (${conditions})
+        ORDER BY b.canonical_order, v.chapter, v.verse, t.abbreviation
+      `;
+
+      const result = await d1.query(sql, params);
+
+      const rows = result.results.map((row) => ({
+        book_id: row['book_id'] as number,
+        chapter: row['chapter'] as number,
+        verse: row['verse'] as number,
+        translation_id: row['translation_id'] as number,
+        text: row['text'] as string,
+        book_name: row['book_name'] as string,
+        translation_abbrev: row['translation_abbrev'] as string,
+      }));
+
+      allRows.push(...rows);
+    })
+  );
+
+  return allRows;
 }
 
 // ─── Tool implementation ──────────────────────────────────────────────────────
@@ -280,7 +320,7 @@ const searchBible: ToolHandler = async (args, _ask?) => {
 
   // Overfetch to ensure enough candidates survive deduplication and application-side translation
   // filtering. ANN retrieval returns candidates before any post-filtering, so we need headroom.
-  const topK = Math.min(limit * VECTORIZE_OVERFETCH_MULTIPLIER, 200);
+  const topK = Math.min(limit * VECTORIZE_OVERFETCH_MULTIPLIER, 20);
 
   // Query Vectorize.
   const matches = await vectorize.query(queryVector, { topK, filter });

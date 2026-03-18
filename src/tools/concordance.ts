@@ -61,6 +61,17 @@ const concordance: ToolHandler = async (args, _ask?) => {
 
   const ftsPhrase = sanitizeFts5(word);
 
+  if (!ftsPhrase) {
+    const response: ConcordanceResult = {
+      word,
+      translation,
+      limit,
+      truncated: false,
+      occurrences: [],
+    };
+    return { ...response, message: 'No searchable terms found — try more specific keywords.' };
+  }
+
   // Fetch one extra row beyond the limit so we can detect truncation without
   // relying solely on the count query result.
   const fetchLimit = limit + 1;

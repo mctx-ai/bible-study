@@ -141,7 +141,7 @@ async function vectorizeQuery(
   const { accountId, indexName } = getConfig();
   const vectorizeBase = `${BASE}/accounts/${accountId}/vectorize/v2/indexes/${indexName}`;
   const body: Record<string, unknown> = { vector, returnMetadata: 'all' };
-  if (options?.topK !== undefined) body['top_k'] = options.topK;
+  if (options?.topK !== undefined) body['top_k'] = Math.min(options.topK, 20);
   if (options?.filter !== undefined) body['filter'] = options.filter;
 
   const result = await cfFetch<{ matches: VectorizeMatch[] }>(
@@ -204,7 +204,7 @@ async function vectorizeTopicsQuery(
 
   const vectorizeBase = `${BASE}/accounts/${accountId}/vectorize/v2/indexes/${topicIndexName}`;
   const body: Record<string, unknown> = { vector, returnMetadata: 'all' };
-  if (options?.topK !== undefined) body['top_k'] = options.topK;
+  if (options?.topK !== undefined) body['top_k'] = Math.min(options.topK, 20);
   if (options?.filter !== undefined) body['filter'] = options.filter;
 
   const result = await cfFetch<{ matches: VectorizeMatch[] }>(
