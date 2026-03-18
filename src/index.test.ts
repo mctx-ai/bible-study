@@ -30,7 +30,7 @@ describe('Server capabilities', () => {
     const data = await getResponse(res);
 
     const toolNames = data.result.tools.map((t: { name: string }) => t.name);
-    expect(toolNames).toContain('search_bible');
+    expect(toolNames).toContain('semantic_search');
     expect(toolNames).toContain('find_text');
     expect(toolNames).toContain('compare_translations');
     expect(toolNames).toContain('cross_references');
@@ -67,10 +67,10 @@ describe('Server capabilities', () => {
 // All tools call D1/Vectorize/Workers AI; those APIs will fail in the test
 // environment, so we assert isError or a response object (not a crash).
 
-describe('Tool: search_bible', () => {
+describe('Tool: semantic_search', () => {
   test('returns a response for a valid query', async () => {
     const req = createRequest('tools/call', {
-      name: 'search_bible',
+      name: 'semantic_search',
       arguments: { query: 'love your neighbor' },
     });
     const res = await server.fetch(req);
@@ -89,7 +89,7 @@ describe('Tool: search_bible', () => {
     // verified. The build step enforces the type contract; this test confirms
     // the code path is exercised without runtime coercion errors.
     const req = createRequest('tools/call', {
-      name: 'search_bible',
+      name: 'semantic_search',
       arguments: { query: 'love', book: 'John', translation: 'KJV' },
     });
     const res = await server.fetch(req);
@@ -585,6 +585,238 @@ describe.skipIf(!process.env.CLOUDFLARE_ACCOUNT_ID)(
         witnessBooks.includes(book),
       );
       expect(hasExpectedBook).toBe(true);
+    });
+  },
+);
+
+// ─── Tool Description Routing Validation ──────────────────────────────────────
+//
+// These tests verify tool descriptions contain the right routing hints so that
+// LLMs choose the correct tool. They do NOT call the Cloudflare API.
+
+describe('Tool description routing validation', () => {
+  test('semantic_search description contains routing hint toward topical_search', async () => {
+    const req = createRequest('tools/list');
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    const semanticTool = data.result.tools.find(
+      (t: { name: string }) => t.name === 'semantic_search',
+    );
+    expect(semanticTool).toBeDefined();
+    expect(semanticTool.description.toLowerCase()).toContain('prefer topical_search');
+  });
+
+  test('topical_search description contains "what does the Bible say" pattern', async () => {
+    const req = createRequest('tools/list');
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    const topicalTool = data.result.tools.find(
+      (t: { name: string }) => t.name === 'topical_search',
+    );
+    expect(topicalTool).toBeDefined();
+    expect(topicalTool.description.toLowerCase()).toContain(
+      'what does the bible say',
+    );
+  });
+
+  test('tool is registered as "semantic_search" not "search_bible"', async () => {
+    const req = createRequest('tools/list');
+    const res = await server.fetch(req);
+    const data = await getResponse(res);
+
+    const toolNames = data.result.tools.map((t: { name: string }) => t.name);
+    expect(toolNames).toContain('semantic_search');
+    expect(toolNames).not.toContain('search_bible');
+  });
+});
+
+// ─── semantic_search Thematic Correctness ─────────────────────────────────────
+//
+// These tests require live Cloudflare API access (D1 + Vectorize + Workers AI).
+// Gated behind CLOUDFLARE_ACCOUNT_ID to skip in CI / local-only environments.
+
+describe.skipIf(!process.env.CLOUDFLARE_ACCOUNT_ID)(
+  'Tool: semantic_search — thematic correctness',
+  () => {
+    test('"God\'s faithfulness during suffering" returns verses', async () => {
+      const req = createRequest('tools/call', {
+        name: 'semantic_search',
+        arguments: { query: "God's faithfulness during suffering" },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
+
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.results.length).toBeGreaterThan(0);
+    });
+
+    test('results for "God\'s faithfulness during suffering" contain God/Lord language', async () => {
+      const req = createRequest('tools/call', {
+        name: 'semantic_search',
+        arguments: { query: "God's faithfulness during suffering" },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
+
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.results.length).toBeGreaterThan(0);
+
+      // At least one result should contain divine language — discriminates
+      // divine faithfulness results from generic human endurance verses
+      const hasDivineLanguage = parsed.results.some(
+        (r: { text?: string; translations?: { text: string }[] }) => {
+          const texts = r.translations
+            ? r.translations.map((t: { text: string }) => t.text).join(' ')
+            : r.text || '';
+          return /\b(God|LORD|Lord|Almighty|Most High)\b/.test(texts);
+        },
+      );
+      expect(hasDivineLanguage).toBe(true);
+    });
+
+    test('consistent results across repeated calls (determinism)', async () => {
+      const makeCall = async () => {
+        const req = createRequest('tools/call', {
+          name: 'semantic_search',
+          arguments: { query: "God's faithfulness during suffering" },
+        });
+        const res = await server.fetch(req);
+        return getResponse(res);
+      };
+
+      const data1 = await makeCall();
+      const data2 = await makeCall();
+
+      expect(data1.result.isError).toBeFalsy();
+      expect(data2.result.isError).toBeFalsy();
+
+      const parsed1 = JSON.parse(data1.result.content[0].text);
+      const parsed2 = JSON.parse(data2.result.content[0].text);
+
+      // Same number of results
+      expect(parsed1.results.length).toBe(parsed2.results.length);
+
+      // Same citations in same order
+      const citations1 = parsed1.results.map(
+        (r: { citation: string }) => r.citation,
+      );
+      const citations2 = parsed2.results.map(
+        (r: { citation: string }) => r.citation,
+      );
+      expect(citations1).toEqual(citations2);
+    });
+  },
+);
+
+// ─── topical_search Expanded Thematic Coverage ────────────────────────────────
+//
+// Regression tests for specific thematic queries and their expected major
+// witnesses. Gated behind CLOUDFLARE_ACCOUNT_ID.
+
+describe.skipIf(!process.env.CLOUDFLARE_ACCOUNT_ID)(
+  'Tool: topical_search — expanded thematic coverage',
+  () => {
+    test('"God\'s faithfulness during suffering" surfaces Job as major witness', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: "God's faithfulness during suffering" },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
+
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      const witnessBooks: string[] = parsed.major_witnesses.map(
+        (w: { book: string }) => w.book,
+      );
+      expect(witnessBooks).toContain('Job');
+    });
+
+    test('"God\'s faithfulness during suffering" surfaces Psalms as major witness', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: "God's faithfulness during suffering" },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
+
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      const witnessBooks: string[] = parsed.major_witnesses.map(
+        (w: { book: string }) => w.book,
+      );
+      expect(witnessBooks).toContain('Psalms');
+    });
+
+    test('"God\'s faithfulness during suffering" major_witnesses have match_reason populated', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: "God's faithfulness during suffering" },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
+
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+
+      for (const witness of parsed.major_witnesses) {
+        expect(typeof witness.match_reason).toBe('string');
+        expect(witness.match_reason.length).toBeGreaterThan(0);
+      }
+    });
+
+    test('"innocent suffering" surfaces Job in major_witnesses', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'innocent suffering' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
+
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      const witnessBooks: string[] = parsed.major_witnesses.map(
+        (w: { book: string }) => w.book,
+      );
+      expect(witnessBooks).toContain('Job');
+    });
+
+    test('"lament and sorrow" surfaces Psalms and Lamentations', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'lament and sorrow' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
+
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      const witnessBooks: string[] = parsed.major_witnesses.map(
+        (w: { book: string }) => w.book,
+      );
+      expect(witnessBooks).toContain('Psalms');
+      expect(witnessBooks).toContain('Lamentations');
+    });
+
+    test('"comfort in affliction" surfaces Isaiah', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'comfort in affliction' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
+
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      const witnessBooks: string[] = parsed.major_witnesses.map(
+        (w: { book: string }) => w.book,
+      );
+      expect(witnessBooks).toContain('Isaiah');
     });
   },
 );

@@ -31,8 +31,9 @@ src/
     cloudflare.ts     → Workers-compatible Cloudflare API clients (D1, Vectorize, Workers AI)
     cloudflare-etl.ts → Node-only ETL utilities (d1.batch, d1.batchFile, sqlLiteral)
   tools/              → One file per tool
-    search-bible.ts   → Full-text keyword search
-    semantic-search.ts → Semantic vector search across verses
+    search-bible.ts   → Semantic vector search across verses (tool: semantic_search)
+    find-text.ts      → Full-text keyword search via FTS5 (tool: find_text)
+    concordance.ts    → Word/phrase frequency grouped by book (tool: concordance)
     compare-translations.ts → Side-by-side translation comparison
     cross-references.ts → Cross-reference lookup
     word-study.ts     → Original-language lexicon and morphology
@@ -128,7 +129,7 @@ npm test -- --watch
 npm test src/index.test.ts
 
 # Run tests matching pattern
-npm test -- -t "search_bible"
+npm test -- -t "semantic_search"
 ```
 
 Tests use Vitest with JSON-RPC 2.0 request helpers. Each test creates a `Request` object, calls `server.fetch()`, and validates the JSON-RPC response.

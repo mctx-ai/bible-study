@@ -618,7 +618,7 @@ wordStudy.annotations = {
 };
 
 wordStudy.description =
-  'Look up the Hebrew or Greek word behind a specific English word in a Bible verse. Returns the original word, Strong\'s number, transliteration, definition, BDB or Thayer lexicon entry, grammatical parsing, and other verses where the same word appears.';
+  'Look up the original Hebrew or Greek word behind an English word in a specific Bible verse. Returns the Strong\'s number, transliteration, full BDB/Thayer lexicon definition, morphological parsing (tense, voice, mood, case, number, gender), and other verses where the same original-language word appears. Accepts either a word position number or an English word to match.';
 
 wordStudy.input = {
   book: T.string({

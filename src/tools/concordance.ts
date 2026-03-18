@@ -30,7 +30,7 @@ interface BookOccurrences {
 }
 
 interface ConcordanceResult {
-  word: string;
+  query: string;
   translation?: string;
   limit: number;
   total_count?: number;
@@ -44,8 +44,8 @@ const CONCORDANCE_MAX_LIMIT = 500;
 const concordance: ToolHandler = async (args, _ask?) => {
   await ensureInitialized();
 
-  const { word, translation, limit: rawLimit } = args as {
-    word: string;
+  const { query, translation, limit: rawLimit } = args as {
+    query: string;
     translation?: string;
     limit?: number;
   };
@@ -59,11 +59,11 @@ const concordance: ToolHandler = async (args, _ask?) => {
     );
   }
 
-  const ftsPhrase = sanitizeFts5(word);
+  const ftsPhrase = sanitizeFts5(query);
 
   if (!ftsPhrase) {
     const response: ConcordanceResult = {
-      word,
+      query,
       translation,
       limit,
       truncated: false,
@@ -171,7 +171,7 @@ const concordance: ToolHandler = async (args, _ask?) => {
   const occurrences = bookOrder.map((name) => bookMap.get(name)!);
 
   const response: ConcordanceResult = {
-    word,
+    query,
     translation,
     limit,
     truncated,
@@ -195,12 +195,12 @@ concordance.annotations = {
 };
 
 concordance.description =
-  'Find every occurrence of a word or phrase across the entire Bible, grouped by book in canonical order with per-book counts. Good for tracing how a word is used throughout Scripture — for example, how many times "grace" appears in each book. Optionally filter by translation.';
+  'Count and locate every occurrence of a word or phrase across the entire Bible, grouped by book with per-book counts. Use when you need frequency data: "How many times does grace appear in Romans vs Ephesians?" Returns results in canonical order (Genesis to Revelation) with full verse text. Higher result limits than find_text (default 100, max 500). Optionally filter by translation.';
 
 concordance.input = {
-  word: T.string({
+  query: T.string({
     required: true,
-    description: 'Word to look up across all Bible verses.',
+    description: 'Word or phrase to look up across all Bible verses.',
     minLength: 1,
   }),
   translation: T.string({

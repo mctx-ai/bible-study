@@ -4,21 +4,23 @@ A complete scholarly Bible study toolkit — semantic search, original-language 
 
 Without this server, deep Bible study means juggling multiple browser tabs: a concordance site here, a lexicon there, a translation comparison tool somewhere else. You lose the thread of your research every time you switch. This server brings all of that into your AI assistant, where each result informs the next question and the entire study session stays in one conversation.
 
-Unlike asking your AI from general knowledge, this server gives your assistant access to structured scholarly data that no training set contains: 17,543 Strong's entries with full BDB and Thayer lexicon definitions, morphological parsing for 447,748 individual words, the complete OpenBible cross-reference dataset, and Nave's 5,319 topical categories.
+Unlike asking your AI from general knowledge, this server gives your assistant access to structured scholarly data that no training set contains: 17,543 Strong's entries with full BDB and Thayer lexicon definitions, morphological parsing for 447,734 individual words, the complete OpenBible cross-reference dataset, and Nave's 5,319 topical categories.
 
 ---
 
 ## What You Get
 
-**Semantic search across 155,510 verses.** Describe a concept in plain language and receive passages that match the meaning, not just the exact keywords. "God's faithfulness despite human failure" finds relevant passages even when those words never appear together. Topical searches also surface the Bible's major thematic witnesses — entire books and narrative arcs, not just individual verses.
+**Semantic search across 155,510 verses.** Describe a concept in plain language and receive passages that match the meaning, not just the exact keywords. "God's faithfulness despite human failure" finds relevant passages even when those words never appear together.
+
+**Topical research with curated context.** For "what does the Bible say about X?" questions, topical search combines Nave's curated index with semantic search and returns something richer: individual verses with source attribution, plus major biblical witnesses — the books and narratives that are the Bible's principal treatments of your topic (such as Job for suffering, or the Psalms for lament). Semantic search finds similar verses; topical search tells you where the Bible speaks most deeply on a subject.
 
 **Original-language word studies.** Look up any word in its Hebrew or Greek original. Get the Strong's number, transliteration, full BDB or Thayer lexicon definition, morphological parsing, and every other verse where that same word appears — all in one response.
 
 **Five translations side by side.** Compare any verse or passage in KJV, WEB, ASV, YLT, and Darby simultaneously. See at a glance where translations agree and where meaningful differences in word choice appear.
 
-**344,799 cross-references.** For any verse, find the other passages that illuminate, echo, or expand on the same idea. Trace how a theme develops across both testaments without losing your place.
+**606,140 cross-references.** For any verse, find the other passages that illuminate, echo, or expand on the same idea. Trace how a theme develops across both testaments without losing your place.
 
-**Nave's Topical Bible with 5,319 categories.** Research what the Bible says about patience, covenant, prayer, or any of thousands of subjects, persons, and themes. Each topic connects to curated verse associations organized by the editors of Nave's original index. For broader thematic queries, the system identifies major biblical witnesses — books and narratives that are central treatments of your topic (such as Job for suffering, or the Psalms for lament) — alongside individual verse results.
+**Nave's Topical Bible with 5,319 categories.** Research what the Bible says about patience, covenant, prayer, or any of thousands of subjects, persons, and themes. Each topic connects to curated verse associations organized by the editors of Nave's original index.
 
 **Full-text keyword search.** Search for an exact word or phrase across all translations or a specific one, from Genesis to Revelation. Results come back in canonical order.
 
@@ -27,6 +29,8 @@ Unlike asking your AI from general knowledge, this server gives your assistant a
 ## How It Works
 
 When you ask a Bible study question, the server queries a purpose-built database and returns structured data your AI assistant can reason about directly. The AI gets facts and definitions, not HTML pages it has to summarize.
+
+Seven tools work together: `semantic_search` for meaning-based verse discovery, `topical_search` for curated thematic research with major witnesses, `find_text` for keyword search, `concordance` for word frequency across books, `compare_translations` for side-by-side rendering, `cross_references` for tracing connections between passages, and `word_study` for original-language deep dives.
 
 Because each query returns structured data, the tools chain naturally in a single conversation. You can find a passage semantically, compare how all five translations render the key term, look that term up in the Greek lexicon, and pull cross-references for the most significant occurrence — each step building on the last, without leaving the thread.
 
@@ -56,11 +60,11 @@ You want to understand what the Hebrew or Greek actually says beneath the Englis
 
 **Finding passages by topic or concept**
 You want to know what the Bible teaches on a subject, or find passages that match a meaning rather than a keyword.
-- "What does the Bible say about forgiveness? Use Nave's topical index."
-- "Find passages about God's faithfulness during suffering — search by meaning, not just keyword."
+- "What does the Bible say about forgiveness?"
 - "What does the Bible say about suffering and God's faithfulness?"
 - "Look up 'patience' in Nave's and show me the associated verses."
-- "Search semantically for verses about light overcoming darkness."
+- "Which books of the Bible deal most with the theme of exile and return?"
+- "Search for verses about light overcoming darkness."
 
 **Sermon and teaching research**
 You are preparing to preach or teach and need cross-references, lexical support, and translation awareness all in one session.

@@ -130,9 +130,9 @@ describe.skipIf(!hasCredentials)('Integration: topical_search', () => {
   });
 });
 
-describe.skipIf(!hasCredentials)('Integration: search_bible', () => {
-  test('search_bible("hope in suffering") returns results with scores', { timeout: 30_000 }, async () => {
-    const data = await callTool('search_bible', {
+describe.skipIf(!hasCredentials)('Integration: semantic_search', () => {
+  test('semantic_search("hope in suffering") returns results with scores', { timeout: 30_000 }, async () => {
+    const data = await callTool('semantic_search', {
       query: 'hope in suffering',
     });
     const parsed = parseContent(data);
@@ -146,8 +146,8 @@ describe.skipIf(!hasCredentials)('Integration: search_bible', () => {
     }
   });
 
-  test('search_bible("love your neighbor") returns results', { timeout: 30_000 }, async () => {
-    const data = await callTool('search_bible', {
+  test('semantic_search("love your neighbor") returns results', { timeout: 30_000 }, async () => {
+    const data = await callTool('semantic_search', {
       query: 'love your neighbor',
     });
     const parsed = parseContent(data);
@@ -157,7 +157,7 @@ describe.skipIf(!hasCredentials)('Integration: search_bible', () => {
   });
 
   test('results contain citation objects with book, chapter, verse', { timeout: 30_000 }, async () => {
-    const data = await callTool('search_bible', {
+    const data = await callTool('semantic_search', {
       query: 'the Lord is my shepherd',
     });
     const parsed = parseContent(data);
@@ -173,7 +173,7 @@ describe.skipIf(!hasCredentials)('Integration: search_bible', () => {
   });
 
   test('results contain translations array', { timeout: 30_000 }, async () => {
-    const data = await callTool('search_bible', { query: 'forgiveness' });
+    const data = await callTool('semantic_search', { query: 'forgiveness' });
     const parsed = parseContent(data);
 
     expect(parsed.results.length).toBeGreaterThan(0);

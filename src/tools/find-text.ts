@@ -215,7 +215,7 @@ findText.annotations = {
 };
 
 findText.description =
-  'Find Bible verses containing a specific word or phrase using full-text search — use this when you know the exact wording you\'re looking for, like "consider the lilies" or "fear not". Returns matches in canonical order across all 5 translations. Optionally filter by translation.';
+  'Keyword search — finds Bible verses containing specific words or phrases in their actual text. Use when you know the exact wording: "consider the lilies", "fear not", "in the beginning". Multi-word queries match all words in any order; wrap in double quotes for exact phrase matching. Returns results in canonical order (Genesis to Revelation). Optionally filter by translation.';
 
 findText.input = {
   query: T.string({

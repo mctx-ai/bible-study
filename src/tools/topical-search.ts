@@ -1126,11 +1126,11 @@ topicalSearch.annotations = {
 };
 
 topicalSearch.description =
-  'Find Bible verses and major thematic witnesses on a theological topic. ' +
-  'Combines Nave\'s curated Topical Bible index (5,319 topics) with AI semantic search. ' +
-  'Returns major_witnesses (books and narratives central to the topic — e.g., Job for suffering, ' +
-  'Psalms for lament) alongside individual verse results with match explanations. ' +
-  'Works well for established topics like forgiveness, prayer, faith, love, and salvation.';
+  'Research what the Bible teaches about a topic — the best tool for "what does the Bible say about X?" questions. ' +
+  'Combines Nave\'s curated Topical Bible (5,319 categories) with AI semantic search. ' +
+  'Returns individual verses with source attribution AND major_witnesses: the books and narratives that are the Bible\'s principal treatments of the topic ' +
+  '(e.g., Job for suffering, Psalms for lament). ' +
+  'Works for single topics ("forgiveness", "prayer") and compound themes ("God\'s faithfulness during suffering", "hope in the face of death").';
 
 topicalSearch.input = {
   topic: T.string({

@@ -159,7 +159,7 @@ crossReferences.annotations = {
 };
 
 crossReferences.description =
-  'Find related passages for a specific Bible verse, drawn from 606,140 curated cross-references. Returns the source verse and each referenced passage with text and citation, ordered by confidence. Results are returned in KJV.';
+  'Find related passages for a specific Bible verse using 606,140 curated cross-references. Returns the source verse and each referenced passage with text, citation, and confidence score. Use to trace how an idea, prophecy, or theme connects across Scripture. Results in KJV.';
 
 crossReferences.input = {
   book: T.string({
