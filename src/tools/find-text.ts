@@ -1,8 +1,9 @@
 // find-text.ts — keyword search tool using FTS5 full-text search
 //
-// Searches Bible verses using SQLite FTS5 MATCH queries. User input is
-// sanitized by wrapping in double quotes to prevent FTS5 metacharacter
-// injection (AND, OR, NOT, NEAR, *, quotes, etc.).
+// Searches Bible verses using SQLite FTS5 MATCH queries. Multi-word input is
+// split into individual keywords (stop words removed) joined by implicit AND.
+// User-supplied double-quoted phrases are preserved as exact phrase matches.
+// FTS5 metacharacters are stripped from all unquoted words.
 
 import type { ToolHandler } from '@mctx-ai/mcp-server';
 import { T } from '@mctx-ai/mcp-server';
@@ -18,36 +19,79 @@ import type { Citation } from '../lib/bible-utils.js';
 
 // ─── Shared FTS5 sanitization ─────────────────────────────────────────────────
 
+/** Common English stop words stripped from multi-word queries. */
+const STOP_WORDS = new Set([
+  'a', 'an', 'the', 'in', 'of', 'for', 'to', 'is', 'it', 'and', 'or',
+  'but', 'with', 'by', 'at', 'on', 'from', 'as', 'be', 'was', 'were',
+  'been', 'are', 'am', 'do', 'does', 'did', 'has', 'have', 'had', 'this',
+  'that', 'these', 'those', 'so', 'if', 'not', 'no', 'up', 'out', 'its',
+]);
+
+/** Strip FTS5 metacharacters from an individual word. */
+function stripFts5Meta(word: string): string {
+  return word.replace(/["*^()\-:]/g, '');
+}
+
 /**
  * Sanitizes a user-supplied string for safe use in an FTS5 MATCH expression.
  *
- * Multi-word inputs are wrapped in double quotes to produce an exact phrase
- * search, neutralizing all FTS5 metacharacters (AND, OR, NOT, NEAR, *, ^,
- * parentheses, etc.). Any embedded double-quote characters are escaped by
- * doubling them ("" is the SQLite FTS5 escape for a literal quote inside a
- * phrase).
+ * - If the input contains explicit double-quoted phrases, those phrases are
+ *   preserved as FTS5 exact phrase matches (with internal quotes escaped).
+ *   Any unquoted words surrounding the phrase are sanitized individually and
+ *   joined with spaces (implicit AND).
  *
- * Single-word inputs are NOT quoted so that FTS5 stemming remains active.
- * Quoting a single word disables stemming, meaning "loves" would not match
- * verses containing only "love". Special characters within single words are
- * still escaped via quoting.
+ * - Multi-word inputs without quotes are split into individual words, common
+ *   English stop words are removed, FTS5 metacharacters are stripped, and the
+ *   remaining words are joined with spaces (FTS5 implicit AND). This means
+ *   'hope in suffering' becomes 'hope suffering' and matches verses containing
+ *   both words in any order.
+ *
+ * - Single-word inputs pass through with metacharacters stripped, preserving
+ *   FTS5 stemming (e.g. 'loves' still matches 'love').
  *
  * @example
- *   sanitizeFts5('God so loved')  → '"God so loved"'
- *   sanitizeFts5('loves')         → 'loves'
- *   sanitizeFts5('it\'s "good"')  → '"it\'s ""good"""'
+ *   sanitizeFts5('hope in suffering')       → 'hope suffering'
+ *   sanitizeFts5('loves')                   → 'loves'
+ *   sanitizeFts5('"God so loved"')          → '"God so loved"'
+ *   sanitizeFts5('Jesus "son of man"')      → 'Jesus "son of man"'
+ *   sanitizeFts5('it\'s good')              → 'its good'
  */
 export function sanitizeFts5(input: string): string {
   const trimmed = input.trim();
-  const escaped = trimmed.replace(/"/g, '""');
-  // Only quote multi-word phrases; single words pass through to preserve stemming.
-  // Single words may still contain special chars that need quoting (e.g. apostrophes
-  // in some FTS5 tokenizer configs), so we quote if any FTS5 metacharacter is present.
-  const hasFts5Meta = /[\s"*^()\-:]/.test(trimmed) || /\b(AND|OR|NOT|NEAR)\b/i.test(trimmed);
-  if (hasFts5Meta) {
-    return `"${escaped}"`;
+  if (!trimmed) return '';
+
+  // Check for user-supplied explicit double quotes indicating exact phrase intent.
+  // We detect quoted segments and preserve them, while sanitizing the rest as keywords.
+  const hasExplicitQuotes = /".+"/.test(trimmed);
+
+  if (hasExplicitQuotes) {
+    // Extract quoted phrases and unquoted segments.
+    const parts: string[] = [];
+    const regex = /"([^"]+)"|(\S+)/g;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(trimmed)) !== null) {
+      if (match[1] !== undefined) {
+        // Quoted phrase — preserve as FTS5 phrase match, escape internal quotes.
+        const escaped = match[1].replace(/"/g, '""');
+        parts.push(`"${escaped}"`);
+      } else if (match[2] !== undefined) {
+        // Unquoted word — sanitize and keep if not a stop word.
+        const word = stripFts5Meta(match[2]);
+        if (word && !STOP_WORDS.has(word.toLowerCase())) {
+          parts.push(word);
+        }
+      }
+    }
+    return parts.join(' ');
   }
-  return escaped;
+
+  // No explicit quotes — split into words, remove stop words, strip metacharacters.
+  const words = trimmed
+    .split(/\s+/)
+    .map(stripFts5Meta)
+    .filter((w) => w !== '' && !STOP_WORDS.has(w.toLowerCase()));
+
+  return words.join(' ');
 }
 
 // ─── find_text tool ───────────────────────────────────────────────────────────
@@ -85,6 +129,17 @@ const findText: ToolHandler = async (args, _ask?) => {
   }
 
   const ftsPhrase = sanitizeFts5(query);
+
+  if (!ftsPhrase) {
+    const response: FindTextResult = {
+      query,
+      translation,
+      limit,
+      count: 0,
+      verses: [],
+    };
+    return { ...response, message: 'No searchable terms found — try more specific keywords.' };
+  }
 
   let sql: string;
   let params: unknown[];

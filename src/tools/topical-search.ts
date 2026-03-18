@@ -178,57 +178,40 @@ function naveTopicRelevance(topicName: string, query: string): number {
   return 0.2;
 }
 
-// ─── Semantic topic search (Vectorize topics index) ───────────────────────────
+// ─── Semantic topic + book search (single Vectorize topics index query) ──────
 
-// Returns topics matching the query vector, post-filtered to 'topic-' prefixed
-// IDs. Falls back to empty array if the topic index is not configured.
-async function searchSemanticTopics(
+// Queries the Vectorize topics index once and splits results by ID prefix into
+// topic-level and book-level matches. Falls back to empty arrays if the topic
+// index is not configured.
+async function searchSemanticTopicsAndBooks(
   queryVector: number[],
-): Promise<Array<{ id: number; name: string; score: number }>> {
-  const matches = await vectorizeTopics.query(queryVector, { topK: MAX_EXPANDED_TOPICS });
-  if (matches.length === 0) return [];
+): Promise<{
+  topics: Array<{ id: number; name: string; score: number }>;
+  books: Array<{ book_id: number; score: number }>;
+}> {
+  const matches = await vectorizeTopics.query(queryVector, { topK: 20 });
+  if (matches.length === 0) return { topics: [], books: [] };
 
   const topics: Array<{ id: number; name: string; score: number }> = [];
-
-  for (const match of matches) {
-    if (!match.id.startsWith('topic-')) continue;
-    const meta = match.metadata;
-    if (!meta) continue;
-
-    const topicId = meta['topic_id'] as number | undefined;
-    const topicName = meta['name'] as string | undefined;
-    if (!topicId || !topicName) continue;
-
-    topics.push({ id: topicId, name: topicName, score: match.score });
-  }
-
-  return topics;
-}
-
-// ─── Semantic book search (Vectorize topics index, book-level) ────────────────
-
-// Returns book-level vectors matching the query vector, post-filtered to
-// 'book-' prefixed IDs. Falls back to empty array if topic index not configured.
-async function searchSemanticBooks(
-  queryVector: number[],
-): Promise<Array<{ book_id: number; score: number }>> {
-  const matches = await vectorizeTopics.query(queryVector, { topK: 66 });
-  if (matches.length === 0) return [];
-
   const books: Array<{ book_id: number; score: number }> = [];
 
   for (const match of matches) {
-    if (!match.id.startsWith('book-')) continue;
     const meta = match.metadata;
     if (!meta) continue;
 
-    const bookId = meta['book_id'] as number | undefined;
-    if (!bookId) continue;
-
-    books.push({ book_id: bookId, score: match.score });
+    if (match.id.startsWith('topic-')) {
+      const topicId = meta['topic_id'] as number | undefined;
+      const topicName = meta['name'] as string | undefined;
+      if (!topicId || !topicName) continue;
+      topics.push({ id: topicId, name: topicName, score: match.score });
+    } else if (match.id.startsWith('book-')) {
+      const bookId = meta['book_id'] as number | undefined;
+      if (!bookId) continue;
+      books.push({ book_id: bookId, score: match.score });
+    }
   }
 
-  return books;
+  return { topics, books };
 }
 
 // ─── Salience fetch ───────────────────────────────────────────────────────────
@@ -271,7 +254,7 @@ async function queryExpandedTopicsByLike(
   const escaped = topic.toLowerCase().replace(/%/g, '\\%').replace(/_/g, '\\_');
 
   const result = await d1.query(
-    `SELECT DISTINCT nt.id, nt.name
+    `SELECT DISTINCT nt.id, nt.topic_name
      FROM nave_topics nt
      WHERE nt.normalized_topic LIKE ? ESCAPE '\\'
      LIMIT ${MAX_EXPANDED_TOPICS}`,
@@ -280,7 +263,7 @@ async function queryExpandedTopicsByLike(
 
   return result.results.map((row) => ({
     id: row['id'] as number,
-    name: row['name'] as string,
+    name: row['topic_name'] as string,
   }));
 }
 
@@ -326,7 +309,7 @@ async function aggregateWitnesses(
            COUNT(DISTINCT ntv.chapter) AS chapter_count,
            MIN(ntv.chapter) AS min_chapter,
            MAX(ntv.chapter) AS max_chapter,
-           GROUP_CONCAT(DISTINCT nt.name) AS topic_names
+           GROUP_CONCAT(DISTINCT nt.topic_name) AS topic_names
          FROM nave_topic_verses ntv
          JOIN nave_topics nt ON nt.id = ntv.topic_id
          JOIN books b ON b.id = ntv.book_id
@@ -489,8 +472,9 @@ async function fetchRepresentativeVerse(
   // Fallback: fetch verse 1 of the most topic-dense chapter in this book.
   const kjvTranslation = getTranslation('KJV');
   const translationFilter = kjvTranslation
-    ? `AND v.translation_id = ${kjvTranslation.id}`
+    ? `AND v.translation_id = ?`
     : `AND t.abbreviation = 'KJV'`;
+  const translationParams: unknown[] = kjvTranslation ? [kjvTranslation.id] : [];
 
   const fallbackResult = await d1.query(
     `SELECT
@@ -525,7 +509,7 @@ async function fetchRepresentativeVerse(
        AND v.verse = 1
        ${translationFilter}
      LIMIT 1`,
-    [candidate.book_id, denseChapter],
+    [candidate.book_id, denseChapter, ...translationParams],
   );
 
   if (verseResult.results.length > 0) {
@@ -684,7 +668,7 @@ async function searchNaves(
        t.abbreviation   AS translation_abbrev,
        v.text           AS text,
        ntv.note         AS note,
-       nt.name          AS topic_name
+       nt.topic_name    AS topic_name
      FROM nave_topic_verses ntv
      JOIN nave_topics nt  ON nt.id = ntv.topic_id
      JOIN books b         ON b.id  = ntv.book_id
@@ -746,7 +730,7 @@ async function searchSemanticFromVector(
   queryVector: number[],
   limit: number,
 ): Promise<Map<string, { book_id: number; chapter: number; verse: number; translation_id: number; score: number }>> {
-  const topK = Math.min(limit * VECTORIZE_OVERFETCH_MULTIPLIER, 200);
+  const topK = Math.min(limit * VECTORIZE_OVERFETCH_MULTIPLIER, 20);
   const matches = await vectorize.query(queryVector, { topK });
   if (matches.length === 0) return new Map();
 
@@ -904,15 +888,19 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
   const queryVector = embeddings.length > 0 ? embeddings[0] : [];
 
   // Phase 2: All Vectorize queries use same embedding, run concurrently.
-  // Graceful degradation: if topic index is not configured, searchSemanticTopics
-  // and searchSemanticBooks return [] — fall back to Nave's LIKE for witnesses.
+  // Graceful degradation: if topic index is not configured, searchSemanticTopicsAndBooks
+  // returns empty arrays — fall back to Nave's LIKE for witnesses.
+  // Topic + book results share one Vectorize query (saves an HTTP round-trip).
   const semanticCoordsPromise = queryVector.length > 0
     ? searchSemanticFromVector(queryVector, limit)
     : Promise.resolve(new Map<string, { book_id: number; chapter: number; verse: number; translation_id: number; score: number }>());
 
-  const [semanticTopics, semanticBooks, semanticCoords] = await Promise.all([
-    queryVector.length > 0 ? searchSemanticTopics(queryVector) : Promise.resolve([]),
-    queryVector.length > 0 ? searchSemanticBooks(queryVector) : Promise.resolve([]),
+  const semanticTopicsAndBooksPromise = queryVector.length > 0
+    ? searchSemanticTopicsAndBooks(queryVector)
+    : Promise.resolve({ topics: [] as Array<{ id: number; name: string; score: number }>, books: [] as Array<{ book_id: number; score: number }> });
+
+  const [{ topics: semanticTopics, books: semanticBooks }, semanticCoords] = await Promise.all([
+    semanticTopicsAndBooksPromise,
     semanticCoordsPromise,
   ]);
 
