@@ -618,7 +618,7 @@ wordStudy.annotations = {
 };
 
 wordStudy.description =
-  'Look up the original Hebrew or Greek word behind an English word in a specific Bible verse. Returns the Strong\'s number, transliteration, full BDB/Thayer lexicon definition, morphological parsing (tense, voice, mood, case, number, gender), and other verses where the same original-language word appears. ' +
+  'Look up the original Hebrew or Greek word behind an English word in a specific Bible verse. Returns original-language lexicon definition, morphological analysis, and other verses using the same word. ' +
   'Use only when the verse is already known and the user wants original-language analysis of a specific word. Not for broad topical questions. ' +
   'Accepts either a word position number or an English word to match.';
 

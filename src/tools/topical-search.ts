@@ -1633,7 +1633,8 @@ topicalSearch.description =
   'Returns both direct verse hits and major_witnesses: the books, narratives, and passages that are the Bible\'s principal treatments of the topic. ' +
   'Combines Nave\'s curated Topical Bible (5,319 categories) with AI semantic search. ' +
   'Works for single topics ("forgiveness", "prayer") and compound themes ("God\'s faithfulness during suffering", "hope in the face of death"). ' +
-  'Prefer this over semantic_search when the answer should include major biblical witnesses across passages, narratives, books, or genres.';
+  'Prefer this over semantic_search when the answer should include major biblical witnesses across passages, narratives, books, or genres. ' +
+  '(Note: For narrative-heavy witnesses, narrative_reason provides additional context beyond match_reason.)';
 
 topicalSearch.input = {
   topic: T.string({

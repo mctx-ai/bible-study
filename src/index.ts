@@ -44,28 +44,33 @@ const server = createServer({
 
 Bible Study server for Scripture retrieval, topical research, cross-references, translation comparison, concordance, and original-language word study.
 
-When choosing tools, route based on the level of meaning the user is asking for:
+Routing framework — choose tools based on what the user is asking for:
 - use find_text when the user knows the wording or phrase they want to find
 - use word_study when the user wants the Hebrew or Greek behind a specific word in a specific verse
 - use compare_translations when the relevant passage is already known and the goal is to compare wording across translations
+- use compare_translations or word_study when the user has a specific verse reference and wants interpretation or deeper understanding of a particular word
 - use cross_references when you already have an anchor verse and want to trace related passages across Scripture
 - use concordance when the user wants counts, distributions, or all occurrences of a word or phrase
 - use semantic_search for exploratory discovery of conceptually similar verses, metaphors, images, or ideas when the user is not asking for the Bible's main teaching or major witnesses on a topic
 - use topical_search for broad theological questions, especially "What does the Bible say about X?" questions, and whenever the answer should include major witnesses across passages, narratives, books, or genres
 
-Biblical meaning may be expressed at multiple levels: word, verse, passage, narrative, book, and canonical theme. Do not assume the best answer is always a list of isolated verses.
+Workflow guidance:
 
 For broad topical questions, prefer topical_search over semantic_search, especially when the answer may depend on major books, narratives, or canonical patterns rather than one verse.
 
 If a broad topic was attempted with semantic_search and the results seem narrow, repetitive, verse-fragment oriented, or too dependent on adjacent wording, switch to topical_search rather than retrying semantic search with paraphrased wording.
 
-When useful, build layered answers in this order: topical_search → cross_references → compare_translations or word_study.
+When building a layered answer: start with topical_search, then optionally expand strong anchor verses with cross_references, then refine with compare_translations or word_study.
 1. identify major witnesses with topical_search
 2. use direct verse or passage hits from that result
-3. expand from strong anchor verses with cross_references
+3. optionally expand from strong anchor verses with cross_references
 4. refine interpretation with compare_translations or word_study only after the right passage has been identified
 
 Prefer answers that combine direct passages with major biblical witnesses when the user asks about a broad theme.
+
+Biblical meaning may be expressed at multiple levels: word, verse, passage, narrative, book, and canonical theme. Do not assume the best answer is always a list of isolated verses.
+
+Reference content:
 
 RESOURCES:
 • bible://translations — list all translations

@@ -159,9 +159,9 @@ crossReferences.annotations = {
 };
 
 crossReferences.description =
-  'Trace related passages from a specific Bible verse using 606,140 curated cross-references. Best when you already have a strong anchor verse and want to expand into a broader canonical network of related texts. ' +
+  'Trace related passages from a specific Bible verse using 606,140 curated cross-references (results in KJV). Best when you already have a strong anchor verse and want to expand into a broader canonical network of related texts. ' +
   'Returns the source verse and each referenced passage with text, citation, and confidence score. ' +
-  'Use after identifying an anchor verse, not as the primary tool for first-pass discovery of a broad topic. Results in KJV.';
+  'Use after identifying an anchor verse, not as the primary tool for first-pass discovery of a broad topic.';
 
 crossReferences.input = {
   book: T.string({
