@@ -1404,18 +1404,19 @@ describe('Theme label mapping', () => {
         { id: 11, name: 'FAITH' },
         { id: 12, name: 'HOPE' },
       ];
-      // Give FAITH highest salience, then HOPE, then SUFFERING.
+      // Give FAITH and HOPE salience above 0.6 threshold; SUFFERING below.
       const salienceMap = new Map<string, number>([
-        ['1:10', 0.2], // SUFFERING
-        ['1:11', 0.9], // FAITH
-        ['1:12', 0.5], // HOPE
+        ['1:10', 0.2], // SUFFERING — below threshold, filtered out
+        ['1:11', 0.9], // FAITH — above threshold
+        ['1:12', 0.7], // HOPE — above threshold
       ]);
       const salienceTopicIds = [10, 11, 12];
       const result = buildThemesMatched(candidate, expandedTopics, salienceMap, salienceTopicIds);
-      // Should be sorted by salience descending: faith, hope, suffering.
+      // Topics with salience >= 0.6: FAITH (0.9), HOPE (0.7). SUFFERING (0.2) is filtered.
+      // Sorted by salience descending: faith, hope.
       expect(result[0]).toBe('faith');
       expect(result[1]).toBe('hope');
-      expect(result[2]).toBe('suffering');
+      expect(result).not.toContain('suffering');
     });
   });
 });

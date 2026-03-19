@@ -62,9 +62,14 @@ const VECTORIZE_OVERFETCH_MULTIPLIER = 8;
 const MAJOR_WITNESS_MIN_VERSES = 5;
 const MAJOR_WITNESS_MIN_CHAPTERS = 2;
 const MAX_MAJOR_WITNESSES = 12;
+// For narrative-mode queries (specific stories/figures), cap witnesses tightly.
+const MAX_MAJOR_WITNESSES_NARRATIVE = 5;
 // Witnesses scoring below this fraction of the top witness score are excluded,
 // even if fewer than MAX_MAJOR_WITNESSES have been emitted.
 const WITNESS_SCORE_CUTOFF = 0.55;
+// Narrative queries use a stricter cutoff — only genuinely related secondary
+// witnesses survive (e.g. Hebrews 11, 1 Peter 3 for Noah — not Exodus, Numbers).
+const WITNESS_SCORE_CUTOFF_NARRATIVE = 0.75;
 const MAX_EXPANDED_TOPICS = 50;
 const WITNESS_INTERLEAVE_INTERVAL = 5;
 
@@ -582,6 +587,88 @@ async function aggregateWitnesses(
   return candidates;
 }
 
+// ─── Query-level narrative detection ─────────────────────────────────────────
+
+// Describes a detected narrative query: the canonical figure/story name and
+// the primary book where the narrative lives (if determinable from LIKE topics).
+interface NarrativeContext {
+  narrativeMode: true;
+  narrativeFigure: string;
+  // book_id of the primary narrative book (highest verse_count for the figure topic),
+  // populated after witness candidates are available. Initially undefined.
+  primaryBookId?: number;
+}
+
+// Well-known biblical proper nouns used to anchor narrative detection via regex.
+// These are figures/stories that have specific, bounded narratives in one primary book.
+const BIBLICAL_PROPER_NOUN_PATTERN =
+  /\b(Noah|Ark|Abraham|Isaac|Jacob|Joseph|Moses|Burning Bush|Red Sea|Exodus|Joshua|Rahab|Caleb|Samson|Gideon|Deborah|Ruth|Samuel|David|Goliath|Solomon|Elijah|Elisha|Jonah|Esther|Daniel|Shadrach|Meshach|Abednego|Nebuchadnezzar|Ezra|Nehemiah|Job|Mary|Joseph of Nazareth|Nativity|Baptism of Jesus|Transfiguration|Lazarus|Zacchaeus|Prodigal Son|Good Samaritan|Feeding of the Five Thousand|Triumphal Entry|Last Supper|Gethsemane|Crucifixion|Resurrection|Pentecost|Paul|Saul|Stephen|Peter|Cornelius|Ananias|Sapphira)\b/i;
+
+// Detects whether a query names a specific biblical narrative, figure, or story.
+// Two complementary signals:
+//   (a) LIKE-expanded topics include short proper-noun topics (1-3 words, capitalized).
+//   (b) Raw query string contains known biblical proper nouns.
+// Returns a NarrativeContext when both or either signal fires clearly, else undefined.
+function detectQueryNarrative(
+  query: string,
+  likeTopics: Array<{ id: number; name: string }>,
+): NarrativeContext | undefined {
+  // Signal (b): regex match on the raw query string.
+  const regexMatch = BIBLICAL_PROPER_NOUN_PATTERN.exec(query);
+
+  // Signal (a): LIKE topics contain short proper-noun topics.
+  // A short proper-noun topic = 1-3 words where the first word is capitalized
+  // in the database (stored uppercase in Nave's, e.g. "NOAH", "JOSEPH").
+  // We check the topic_name for a single short entry that looks like a figure name.
+  const shortProperTopics = likeTopics.filter((t) => {
+    const words = t.name.trim().split(/\s+/);
+    // Must be 1-3 words and contain at least one significant proper noun word
+    // (not just a common word like "THE", "OF", "AND").
+    if (words.length < 1 || words.length > 3) return false;
+    // Nave's stores topic names in UPPERCASE. A proper-noun topic will be
+    // a name like "NOAH", "JOSEPH", "MOSES", "DAVID AND GOLIATH", etc.
+    // Filter out generic theological terms that are short but not figure names.
+    const genericTerms = new Set([
+      'GOD', 'LORD', 'CHRIST', 'JESUS', 'HOLY SPIRIT', 'SPIRIT', 'FAITH',
+      'LAW', 'SIN', 'LOVE', 'GRACE', 'HOPE', 'PRAYER', 'MERCY', 'JOY',
+      'PEACE', 'TRUTH', 'LIFE', 'DEATH', 'FIRE', 'WATER', 'BREAD', 'LIGHT',
+      'DARKNESS', 'HEART', 'SOUL', 'MIND', 'BODY', 'BLOOD', 'FLESH', 'WORD',
+      'WORKS', 'KING', 'PRIEST', 'PROPHET', 'MAN', 'WOMAN', 'CHILD', 'SON',
+      'FATHER', 'MOTHER', 'ISRAEL', 'CHURCH', 'HEAVEN', 'EARTH', 'SEA',
+      // Theological abstracts that are 1-3 word topics but not figure names.
+      'FAITHFULNESS', 'GRACE OF GOD', 'LOVE OF GOD', 'JUSTICE', 'JUDGMENT',
+      'SALVATION', 'REPENTANCE', 'FORGIVENESS', 'HOLINESS', 'SANCTIFICATION',
+      'RIGHTEOUSNESS', 'ATONEMENT', 'REDEMPTION', 'GLORIFICATION', 'ELECTION',
+      'RESURRECTION', 'BAPTISM', 'COVENANT', 'CREATION', 'SUFFERING',
+      'AFFLICTIONS', 'ADVERSITY', 'PATIENCE', 'ENDURANCE', 'COMFORT',
+      'WORSHIP', 'PRAISE', 'THANKSGIVING', 'HUMILITY', 'OBEDIENCE',
+      'TEMPTATION', 'WISDOM', 'BLESSING', 'CALLING', 'HEALING',
+      'FIGHT OF FAITH', 'UNFAITHFULNESS', 'ETERNAL LIFE', 'KINGDOM OF GOD',
+      'HOLY SPIRIT', 'DIVINE', 'SOVEREIGNTY', 'PROVIDENCE', 'OMNIPOTENCE',
+      'COMPASSION', 'ANGER', 'WRATH', 'DISCIPLINE', 'GUIDANCE', 'TRUST',
+      'ANXIETY', 'FEAR', 'GRIEF', 'LAMENT', 'DOUBT', 'COURAGE', 'STRENGTH',
+    ]);
+    const joined = words.join(' ');
+    return !genericTerms.has(joined);
+  });
+
+  // Determine the figure label from signal (b) if available, then optionally
+  // corroborate with signal (a). Narrative mode requires signal (b) (the raw
+  // query regex) to fire; signal (a) alone is too prone to false positives from
+  // short theological topic names in Nave's (e.g. FAITHFULNESS, GRACE OF GOD).
+  let narrativeFigure: string | undefined;
+
+  if (regexMatch) {
+    narrativeFigure = regexMatch[1];
+  }
+  // Signal (a) alone does NOT trigger narrative mode — it only serves as
+  // corroborating evidence when signal (b) already fired.
+
+  if (!narrativeFigure) return undefined;
+
+  return { narrativeMode: true, narrativeFigure };
+}
+
 // ─── Narrative detection ──────────────────────────────────────────────────────
 
 function detectNarrative(
@@ -685,7 +772,85 @@ async function fetchRepresentativeVerse(
     }
   >,
   semanticVerseMap: Map<string, VerseRow>,
+  narrativeContext?: NarrativeContext,
 ): Promise<{ text: string; citation: Citation }> {
+  // ── Narrative mode: primary narrative book ──────────────────────────────────
+  // When the query names a specific narrative and this is the primary narrative
+  // book, prefer a verse from within the densest chapter cluster of the story
+  // unit (min_chapter–max_chapter from aggregation data) instead of an
+  // arbitrary semantic hit that might come from an unrelated section of the book.
+  const isNarrativePrimaryBook =
+    narrativeContext?.narrativeMode === true &&
+    narrativeContext.primaryBookId === candidate.book_id;
+
+  if (isNarrativePrimaryBook) {
+    const kjvTranslation = getTranslation('KJV');
+    const translationFilter = kjvTranslation
+      ? `AND v.translation_id = ?`
+      : `AND t.abbreviation = 'KJV'`;
+    const translationParams: unknown[] = kjvTranslation ? [kjvTranslation.id] : [];
+
+    // Find the densest chapter within the narrative span (min_chapter–max_chapter).
+    const topicFilter =
+      matchedTopicIds.length > 0
+        ? `AND ntv.topic_id IN (${matchedTopicIds.map(() => '?').join(', ')})`
+        : '';
+    const topicParams = matchedTopicIds.length > 0 ? matchedTopicIds : [];
+
+    const narrativeChapterResult = await d1.query(
+      `SELECT
+         ntv.chapter,
+         COUNT(*) AS topic_hits
+       FROM nave_topic_verses ntv
+       WHERE ntv.book_id = ?
+         AND ntv.chapter >= ?
+         AND ntv.chapter <= ?
+         ${topicFilter}
+       GROUP BY ntv.chapter
+       ORDER BY topic_hits DESC
+       LIMIT 1`,
+      [candidate.book_id, candidate.min_chapter, candidate.max_chapter, ...topicParams],
+    );
+
+    const narrativeDenseChapter =
+      narrativeChapterResult.results.length > 0
+        ? (narrativeChapterResult.results[0]['chapter'] as number)
+        : candidate.min_chapter;
+
+    const narrativeVerseResult = await d1.query(
+      `SELECT
+         v.book_id,
+         v.chapter,
+         v.verse,
+         b.name AS book_name,
+         t.abbreviation AS translation_abbrev,
+         v.text
+       FROM verses v
+       JOIN books b ON b.id = v.book_id
+       JOIN translations t ON t.id = v.translation_id
+       WHERE v.book_id = ?
+         AND v.chapter = ?
+         AND v.verse = 1
+         ${translationFilter}
+       LIMIT 1`,
+      [candidate.book_id, narrativeDenseChapter, ...translationParams],
+    );
+
+    if (narrativeVerseResult.results.length > 0) {
+      const r = narrativeVerseResult.results[0] as unknown as VerseRow;
+      return {
+        text: r.text,
+        citation: {
+          book: r.book_name,
+          chapter: r.chapter,
+          verse: r.verse,
+          translation: r.translation_abbrev,
+        },
+      };
+    }
+    // Fall through to standard selection if narrative query fails.
+  }
+
   // Prefer verses that appear in nave_topic_verses for the matched topics AND
   // have a high Vectorize semantic score. This ensures the representative verse
   // is both topically grounded AND semantically close to the query.
@@ -752,72 +917,139 @@ async function fetchRepresentativeVerse(
     };
   }
 
-  // Fallback: fetch verse 1 of the densest topic-matched chapter in this book.
-  // When no Vectorize hits exist for this book, use topic density as a proxy.
+  // Last-resort fallback: no Vectorize hits exist for this book.
+  // Instead of defaulting to verse 1 of the densest chapter (which produces
+  // poor anchors like Isaiah 1:1), find the verse that appears in the most
+  // matched topics within this book — the highest co-occurrence verse.
   const kjvTranslation = getTranslation('KJV');
   const translationFilter = kjvTranslation
     ? `AND v.translation_id = ?`
     : `AND t.abbreviation = 'KJV'`;
   const translationParams: unknown[] = kjvTranslation ? [kjvTranslation.id] : [];
 
-  // Query dense chapter from the matched topics only (if available), else all topics.
-  const topicFilter =
-    matchedTopicIds.length > 0
-      ? `AND ntv.topic_id IN (${matchedTopicIds.map(() => '?').join(', ')})`
-      : '';
-  const topicParams = matchedTopicIds.length > 0 ? matchedTopicIds : [];
+  if (matchedTopicIds.length > 0) {
+    // Step 1: find the verse with the highest co-occurrence count across matched topics.
+    const topicPlaceholders = matchedTopicIds.map(() => '?').join(', ');
+    const cooccurrenceResult = await d1.query(
+      `SELECT
+         ntv.chapter,
+         ntv.verse,
+         COUNT(DISTINCT ntv.topic_id) AS topic_count
+       FROM nave_topic_verses ntv
+       WHERE ntv.book_id = ?
+         AND ntv.topic_id IN (${topicPlaceholders})
+       GROUP BY ntv.chapter, ntv.verse
+       ORDER BY topic_count DESC, ntv.chapter ASC, ntv.verse ASC
+       LIMIT 1`,
+      [candidate.book_id, ...matchedTopicIds],
+    );
 
-  const fallbackResult = await d1.query(
-    `SELECT
-       ntv.chapter,
-       COUNT(*) AS topic_hits
-     FROM nave_topic_verses ntv
-     WHERE ntv.book_id = ?
-       ${topicFilter}
-     GROUP BY ntv.chapter
-     ORDER BY topic_hits DESC
-     LIMIT 1`,
-    [candidate.book_id, ...topicParams],
-  );
+    if (cooccurrenceResult.results.length > 0) {
+      const bestChapter = cooccurrenceResult.results[0]['chapter'] as number;
+      const bestVerse = cooccurrenceResult.results[0]['verse'] as number;
 
-  const denseChapter =
-    fallbackResult.results.length > 0
-      ? (fallbackResult.results[0]['chapter'] as number)
-      : 1;
+      const cooccurrenceVerseResult = await d1.query(
+        `SELECT
+           v.book_id,
+           v.chapter,
+           v.verse,
+           b.name AS book_name,
+           t.abbreviation AS translation_abbrev,
+           v.text
+         FROM verses v
+         JOIN books b ON b.id = v.book_id
+         JOIN translations t ON t.id = v.translation_id
+         WHERE v.book_id = ?
+           AND v.chapter = ?
+           AND v.verse = ?
+           ${translationFilter}
+         LIMIT 1`,
+        [candidate.book_id, bestChapter, bestVerse, ...translationParams],
+      );
 
-  const verseResult = await d1.query(
-    `SELECT
-       v.book_id,
-       v.chapter,
-       v.verse,
-       b.name AS book_name,
-       t.abbreviation AS translation_abbrev,
-       v.text
-     FROM verses v
-     JOIN books b ON b.id = v.book_id
-     JOIN translations t ON t.id = v.translation_id
-     WHERE v.book_id = ?
-       AND v.chapter = ?
-       AND v.verse = 1
-       ${translationFilter}
-     LIMIT 1`,
-    [candidate.book_id, denseChapter, ...translationParams],
-  );
+      if (cooccurrenceVerseResult.results.length > 0) {
+        const r = cooccurrenceVerseResult.results[0] as unknown as VerseRow;
+        return {
+          text: r.text,
+          citation: {
+            book: r.book_name,
+            chapter: r.chapter,
+            verse: r.verse,
+            translation: r.translation_abbrev,
+          },
+        };
+      }
+    }
 
-  if (verseResult.results.length > 0) {
-    const r = verseResult.results[0] as unknown as VerseRow;
-    return {
-      text: r.text,
-      citation: {
-        book: r.book_name,
-        chapter: r.chapter,
-        verse: r.verse,
-        translation: r.translation_abbrev,
-      },
-    };
+    // Step 2: fall back to the densest chapter, then pick the lowest verse number
+    // among topic-matched verses in that chapter (not just verse 1).
+    const denseChapterResult = await d1.query(
+      `SELECT
+         ntv.chapter,
+         COUNT(*) AS topic_hits
+       FROM nave_topic_verses ntv
+       WHERE ntv.book_id = ?
+         AND ntv.topic_id IN (${topicPlaceholders})
+       GROUP BY ntv.chapter
+       ORDER BY topic_hits DESC
+       LIMIT 1`,
+      [candidate.book_id, ...matchedTopicIds],
+    );
+
+    if (denseChapterResult.results.length > 0) {
+      const denseChapter = denseChapterResult.results[0]['chapter'] as number;
+
+      // Pick the lowest verse number among topic-matched verses in this chapter.
+      const minTopicVerseResult = await d1.query(
+        `SELECT MIN(ntv.verse) AS min_verse
+         FROM nave_topic_verses ntv
+         WHERE ntv.book_id = ?
+           AND ntv.chapter = ?
+           AND ntv.topic_id IN (${topicPlaceholders})`,
+        [candidate.book_id, denseChapter, ...matchedTopicIds],
+      );
+
+      const targetVerse =
+        minTopicVerseResult.results.length > 0 &&
+        minTopicVerseResult.results[0]['min_verse'] != null
+          ? (minTopicVerseResult.results[0]['min_verse'] as number)
+          : 1;
+
+      const verseResult = await d1.query(
+        `SELECT
+           v.book_id,
+           v.chapter,
+           v.verse,
+           b.name AS book_name,
+           t.abbreviation AS translation_abbrev,
+           v.text
+         FROM verses v
+         JOIN books b ON b.id = v.book_id
+         JOIN translations t ON t.id = v.translation_id
+         WHERE v.book_id = ?
+           AND v.chapter = ?
+           AND v.verse = ?
+           ${translationFilter}
+         LIMIT 1`,
+        [candidate.book_id, denseChapter, targetVerse, ...translationParams],
+      );
+
+      if (verseResult.results.length > 0) {
+        const r = verseResult.results[0] as unknown as VerseRow;
+        return {
+          text: r.text,
+          citation: {
+            book: r.book_name,
+            chapter: r.chapter,
+            verse: r.verse,
+            translation: r.translation_abbrev,
+          },
+        };
+      }
+    }
   }
 
-  // Last resort: return empty placeholder (should never happen in practice).
+  // Absolute last resort: return empty placeholder (should never happen in practice).
   return {
     text: '',
     citation: {
@@ -994,10 +1226,18 @@ function toThemeLabel(topicName: string): string {
   return topicName.toLowerCase().replace(/ and /gi, ' and ');
 }
 
+// Minimum salience score for a topic to appear in themes_matched output.
+// Topics below this threshold are considered too loosely related to the query
+// to surface as user-facing theme labels.
+const THEMES_MATCHED_SALIENCE_THRESHOLD = 0.6;
+// Maximum number of theme labels to include in themes_matched.
+const THEMES_MATCHED_MAX = 5;
+
 // Builds the list of query-relevant themes for a witness book.
 // Filters topic_names to only those topics that appear in expandedTopics
-// (the query-matched topic set), then sorts by salience descending.
-// Internal scoring uses original topic names; output labels are user-facing.
+// (the query-matched topic set), with salience >= 0.6 for this book, capped
+// at top 5 by salience. Internal scoring uses original topic names; output
+// labels are user-facing.
 function buildThemesMatched(
   candidate: WitnessCandidate,
   expandedTopics: Array<{ id: number; name: string }>,
@@ -1014,11 +1254,6 @@ function buildThemesMatched(
   // Keep only topics that are in the query-matched expanded topic set.
   const matched = candidateTopics.filter((name) => expandedNameSet.has(name));
 
-  if (matched.length === 0) {
-    // Fallback: return first 5 topics from candidate as user-facing labels.
-    return candidateTopics.slice(0, 5).map(toThemeLabel);
-  }
-
   // Build a salience score lookup by topic name for this book.
   // Scoring uses original topic names (not labels) to preserve correctness.
   const topicIdByName = new Map(expandedTopics.map((t) => [t.name, t.id]));
@@ -1028,9 +1263,26 @@ function buildThemesMatched(
     return salienceMap.get(`${candidate.book_id}:${topicId}`) ?? 0;
   };
 
-  matched.sort((a, b) => getSalience(b) - getSalience(a));
-  // Transform to user-facing labels only after sorting by internal names.
-  return matched.map(toThemeLabel);
+  if (matched.length > 0) {
+    // Filter to topics whose salience for this book exceeds the threshold,
+    // sort by salience descending, and cap at THEMES_MATCHED_MAX.
+    const salienceFiltered = matched.filter(
+      (name) => getSalience(name) >= THEMES_MATCHED_SALIENCE_THRESHOLD,
+    );
+
+    if (salienceFiltered.length > 0) {
+      salienceFiltered.sort((a, b) => getSalience(b) - getSalience(a));
+      return salienceFiltered.slice(0, THEMES_MATCHED_MAX).map(toThemeLabel);
+    }
+
+    // If no topics pass the salience threshold, fall back to top 5 by salience
+    // (without threshold) to avoid returning an empty list.
+    matched.sort((a, b) => getSalience(b) - getSalience(a));
+    return matched.slice(0, THEMES_MATCHED_MAX).map(toThemeLabel);
+  }
+
+  // No query-matched topics found: return first 5 candidate topics as labels.
+  return candidateTopics.slice(0, THEMES_MATCHED_MAX).map(toThemeLabel);
 }
 
 // Row shape returned by the anchor passage batch query.
@@ -1478,6 +1730,7 @@ async function buildMajorWitnesses(
   >,
   semanticVerseMap: Map<string, VerseRow>,
   queryTopic: string,
+  narrativeContext?: NarrativeContext,
 ): Promise<MajorWitness[]> {
   const topicIds = expandedTopics.map((t) => t.id);
 
@@ -1600,11 +1853,34 @@ async function buildMajorWitnesses(
   // - Queries with a clear top-N (large score gaps) return fewer witnesses
   // - Queries with many similarly-scored books (like "end times prophecy")
   //   return more witnesses to capture all relevant books
+  //
+  // For narrative-mode queries (specific stories/figures):
+  //   - Tighter cap (MAX_MAJOR_WITNESSES_NARRATIVE) focuses on story-specific witnesses
+  //   - Stricter cutoff (WITNESS_SCORE_CUTOFF_NARRATIVE) filters weak associations
+  //   - The primary narrative book is always included regardless of score
+  const isNarrativeMode = narrativeContext?.narrativeMode === true;
   const topScore = scored.length > 0 ? scored[0].witnessScore : 0;
-  const cutoff = topScore * WITNESS_SCORE_CUTOFF;
-  const topScoredCandidates = scored
-    .slice(0, MAX_MAJOR_WITNESSES)
-    .filter((s) => s.witnessScore >= cutoff);
+  const activeCutoff = isNarrativeMode ? WITNESS_SCORE_CUTOFF_NARRATIVE : WITNESS_SCORE_CUTOFF;
+  const activeMaxWitnesses = isNarrativeMode ? MAX_MAJOR_WITNESSES_NARRATIVE : MAX_MAJOR_WITNESSES;
+  const cutoff = topScore * activeCutoff;
+
+  // For narrative queries, identify the primary book (highest verse_count among candidates).
+  // The candidates are already sorted by verse_count descending, so the first qualified
+  // candidate is the primary narrative book.
+  if (isNarrativeMode && narrativeContext && candidates.length > 0) {
+    // Use the top verse_count candidate as the primary book anchor.
+    narrativeContext.primaryBookId = candidates[0].book_id;
+  }
+
+  const primaryBookId = isNarrativeMode ? narrativeContext?.primaryBookId : undefined;
+
+  // Build the candidate list: apply cap + cutoff, but always include the primary book.
+  const cappedSlice = scored.slice(0, activeMaxWitnesses);
+  const topScoredCandidates = isNarrativeMode
+    ? cappedSlice.filter(
+        (s) => s.witnessScore >= cutoff || s.candidate.book_id === primaryBookId,
+      )
+    : cappedSlice.filter((s) => s.witnessScore >= cutoff);
 
   // Build witnesses concurrently (representative verse may need D1 fallback).
   const witnesses: MajorWitness[] = await Promise.all(
@@ -1633,6 +1909,7 @@ async function buildMajorWitnesses(
         matchedTopicIds,
         semanticCoords,
         semanticVerseMap,
+        narrativeContext,
       );
 
       // Build enrichment fields from in-memory data (no additional D1 queries).
@@ -1666,13 +1943,13 @@ async function buildMajorWitnesses(
       const narrativeReason = buildNarrativeReason(narrative, candidate, themesMatched);
 
       // Classify witness strength relative to the top-scoring witness.
-      // central  >= 0.75 of top score
-      // strong   >= 0.55 of top score (existing inclusion cutoff)
-      // supporting < 0.55 of top score (qualifies but below the hard cutoff)
+      // central    >= 0.85 of top score — reserved for the most relevant books
+      // strong     >= 0.65 of top score — clearly relevant secondary witnesses
+      // supporting >= 0.45 of top score — genuinely related but less central
       let witness_strength: MajorWitness['witness_strength'];
-      if (topScore === 0 || witnessScore / topScore >= 0.75) {
+      if (topScore === 0 || witnessScore / topScore >= 0.85) {
         witness_strength = 'central';
-      } else if (witnessScore / topScore >= 0.55) {
+      } else if (witnessScore / topScore >= 0.65) {
         witness_strength = 'strong';
       } else {
         witness_strength = 'supporting';
@@ -2001,6 +2278,13 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
   console.error(`[DEBUG] semanticTopics: ${semanticTopics.map(t => `${t.name}(${t.id},s=${t.score.toFixed(3)})`).join(', ')}`);
   console.error(`[DEBUG] likeTopics: ${likeTopics.map(t => `${t.name}(${t.id})`).join(', ')}`);
 
+  // Detect whether the query names a specific biblical narrative or figure.
+  // This is done after LIKE topics resolve so we can use them as a signal.
+  const narrativeContext = detectQueryNarrative(topic, likeTopics);
+  if (narrativeContext) {
+    console.error(`[DEBUG] narrativeMode detected: figure="${narrativeContext.narrativeFigure}"`);
+  }
+
   const semanticVerseMap = await fetchVerseTexts(Array.from(semanticCoords.values()));
 
   // Merge semantic topics with LIKE-based topics for comprehensive coverage.
@@ -2089,7 +2373,7 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
   // Phase 3 (was Phase 2): Build major witnesses using semantic topics + book scores + salience.
   const majorWitnesses =
     finalExpandedTopics.length > 0
-      ? await buildMajorWitnesses(finalExpandedTopics, salienceTopicIds, topicRelevanceWeight, semanticBooks, semanticCoords, semanticVerseMap, topic)
+      ? await buildMajorWitnesses(finalExpandedTopics, salienceTopicIds, topicRelevanceWeight, semanticBooks, semanticCoords, semanticVerseMap, topic, narrativeContext ?? undefined)
       : [];
 
   // Phase 4: Existing merge + witness interleave + match reasons.
