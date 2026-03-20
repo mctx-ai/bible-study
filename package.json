@@ -1,6 +1,6 @@
 {
   "name": "bible-study",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Study the Bible in its original languages, trace themes across both testaments, and compare five translations — all in one conversation. Ask any question about what Scripture says and get grounded, cited answers: What does the Bible say about suffering? Topical search surfaces Job as the Bible's principal witness on suffering (with explanations of why it matters and suggested starting passages), Psalms on lament, Romans on justification — whole books and narratives alongside individual verses. What is the Hebrew word behind lovingkindness in Psalm 23? Compare how KJV and WEB translate John 3:16. Trace the word grace through Paul's letters. Covers 155,510 verses across KJV, WEB, ASV, YLT, and Darby with 606,140 cross-references, 17,543 Strong's entries, BDB and Thayer lexicon definitions, and Nave's 5,319 topical categories.",
   "homepage": "https://github.com/mctx-ai/bible-mcp-server",
   "repository": {
