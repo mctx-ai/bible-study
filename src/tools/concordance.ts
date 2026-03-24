@@ -5,8 +5,8 @@
 // configurable result limit. When results are truncated a total_count field
 // is included so callers know there are more matches.
 
-import type { ToolHandler } from '@mctx-ai/mcp-server';
-import { T } from '@mctx-ai/mcp-server';
+import type { ToolHandler } from '@mctx-ai/app';
+import { T } from '@mctx-ai/app';
 import { d1 } from '../lib/cloudflare.js';
 import {
   getTranslation,

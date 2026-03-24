@@ -4,7 +4,7 @@
 // full name, and year. Data is served from the in-memory cache populated at
 // module load time — no D1 round-trip per request.
 
-import type { ResourceHandler } from '@mctx-ai/mcp-server';
+import type { ResourceHandler } from '@mctx-ai/app';
 import { getAllTranslations, ensureInitialized } from '../lib/bible-utils.js';
 
 const handler: ResourceHandler = async (_params) => {

@@ -17,8 +17,8 @@
 //   7. Query morphology for other verses with the same strongs_number (LIMIT 20).
 //   8. Count total occurrences (distinct verses with that strongs_number).
 
-import type { ToolHandler } from '@mctx-ai/mcp-server';
-import { T } from '@mctx-ai/mcp-server';
+import type { ToolHandler } from '@mctx-ai/app';
+import { T } from '@mctx-ai/app';
 import { d1 } from '../lib/cloudflare.js';
 import {
   getTranslation,

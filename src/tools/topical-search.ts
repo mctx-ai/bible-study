@@ -10,8 +10,8 @@
 //   4. Build major witnesses from expanded topics + semantic results
 //   5. Return combined results with source attribution and match explanations
 
-import type { ToolHandler } from '@mctx-ai/mcp-server';
-import { T } from '@mctx-ai/mcp-server';
+import type { ToolHandler } from '@mctx-ai/app';
+import { T } from '@mctx-ai/app';
 import { d1, vectorize, vectorizeTopics, workersAi } from '../lib/cloudflare.js';
 import type { Citation } from '../lib/bible-utils.js';
 import { getTranslation, ensureInitialized } from '../lib/bible-utils.js';

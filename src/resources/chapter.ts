@@ -4,7 +4,7 @@
 // per verse. Book names are resolved via the alias resolver so common
 // variants (Gen, gen, Genesis) all work.
 
-import type { ResourceHandler } from '@mctx-ai/mcp-server';
+import type { ResourceHandler } from '@mctx-ai/app';
 import { d1 } from '../lib/cloudflare.js';
 import {
   getTranslation,

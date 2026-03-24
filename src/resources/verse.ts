@@ -4,7 +4,7 @@
 // requested verse is marked with `requested: true` so callers can identify
 // it within the context window. All verses carry structured Citation objects.
 
-import type { ResourceHandler } from '@mctx-ai/mcp-server';
+import type { ResourceHandler } from '@mctx-ai/app';
 import { d1 } from '../lib/cloudflare.js';
 import {
   getTranslation,

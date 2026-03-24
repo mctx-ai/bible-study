@@ -4,8 +4,8 @@
 // Each result includes the referenced verse text (KJV) and structured Citations
 // for both the source verse and the referenced verse.
 
-import type { ToolHandler } from '@mctx-ai/mcp-server';
-import { T } from '@mctx-ai/mcp-server';
+import type { ToolHandler } from '@mctx-ai/app';
+import { T } from '@mctx-ai/app';
 import { d1 } from '../lib/cloudflare.js';
 import {
   resolveBook,

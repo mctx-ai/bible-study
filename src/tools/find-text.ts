@@ -5,8 +5,8 @@
 // User-supplied double-quoted phrases are preserved as exact phrase matches.
 // FTS5 metacharacters are stripped from all unquoted words.
 
-import type { ToolHandler } from '@mctx-ai/mcp-server';
-import { T } from '@mctx-ai/mcp-server';
+import type { ToolHandler } from '@mctx-ai/app';
+import { T } from '@mctx-ai/app';
 import { d1 } from '../lib/cloudflare.js';
 import {
   getTranslation,

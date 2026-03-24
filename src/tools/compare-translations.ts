@@ -3,8 +3,8 @@
 // Returns the same passage from all 5 translations side-by-side.
 // Each verse is fully cited with a structured Citation object.
 
-import type { ToolHandler } from '@mctx-ai/mcp-server';
-import { T } from '@mctx-ai/mcp-server';
+import type { ToolHandler } from '@mctx-ai/app';
+import { T } from '@mctx-ai/app';
 import { d1 } from '../lib/cloudflare.js';
 import {
   resolveBook,

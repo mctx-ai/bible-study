@@ -5,8 +5,8 @@
 // verse locations and returns all translations for each location from D1.
 // When a translation filter is set, the limit applies directly to results.
 
-import { T } from '@mctx-ai/mcp-server';
-import type { ToolHandler } from '@mctx-ai/mcp-server';
+import { T } from '@mctx-ai/app';
+import type { ToolHandler } from '@mctx-ai/app';
 import { vectorize, workersAi, d1 } from '../lib/cloudflare.js';
 import {
   resolveBook,
