@@ -26,10 +26,13 @@ A **Bible study MCP server** built with `@mctx-ai/app` framework, deployed on th
 src/
   index.ts            → Server entry point (createServer, tool/resource registration)
   index.test.ts       → Comprehensive tests for all capabilities
+  integration.test.ts → Integration tests that call live Cloudflare APIs (requires credentials)
   lib/
-    bible-utils.ts    → Shared Bible utilities (book lookup, verse formatting)
-    cloudflare.ts     → Workers-compatible Cloudflare API clients (D1, Vectorize, Workers AI)
-    cloudflare-etl.ts → Node-only ETL utilities (d1.batch, d1.batchFile, sqlLiteral)
+    bible-utils.ts      → Shared Bible utilities (book lookup, verse formatting)
+    bible-utils.test.ts → Unit tests for bible-utils
+    cloudflare.ts       → Workers-compatible Cloudflare API clients (D1, Vectorize, Workers AI)
+    cloudflare.test.ts  → Unit tests for cloudflare client
+    cloudflare-etl.ts   → Node-only ETL utilities (d1.batch, d1.batchFile, sqlLiteral)
   tools/              → One file per tool
     search-bible.ts   → Semantic vector search across verses (tool: semantic_search)
     find-text.ts      → Full-text keyword search via FTS5 (tool: find_text)
@@ -81,7 +84,7 @@ Every tool description should tell a client not just what THIS tool does, but wh
 
 The server uses two Vectorize indices for semantic search:
 
-**`bible-verses`** (155,510 vectors) — Verse embeddings for semantic search across all verses. Index name is hardcoded in `src/lib/cloudflare.ts`.
+**`bible-verses`** (155,510 vectors) — Verse embeddings for semantic search across all verses. Index name is configurable via `VECTORIZE_INDEX_NAME` env var (empty string fallback).
 
 **`bible-topics`** (5,385 vectors) — Topic and theme embeddings for semantic topic matching:
 - 5,319 vectors from Nave's Topical Bible categories (one per category)
@@ -147,6 +150,8 @@ npm test -- -t "semantic_search"
 
 Tests use Vitest with JSON-RPC 2.0 request helpers. Each test creates a `Request` object, calls `server.fetch()`, and validates the JSON-RPC response.
 
+**`integration.test.ts`** — Requires live Cloudflare credentials (`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, and related env vars set in `.env`). These tests call D1, Vectorize, and Workers AI directly and skip gracefully when credentials are absent. Unit tests in `index.test.ts` do not require credentials.
+
 ### Linting
 ```bash
 # Check for issues
@@ -168,6 +173,12 @@ npm run format:check
 ```
 
 Prettier configuration: `singleQuote: true` (in `.prettierrc`).
+
+### Type Checking
+```bash
+npm run typecheck
+```
+Runs `tsc --noEmit` for both the main source and the scripts tsconfig (no output emitted, type errors only).
 
 ### ETL Pipeline
 
@@ -196,6 +207,13 @@ npm run etl:salience        # Compute per-book per-topic salience weights → na
 npm run search:topic-embeddings  # Ingest topic and book theme embeddings into Vectorize
 ```
 
+**Convenience Scripts:**
+```bash
+npm run etl:all             # Run all ETL phases in sequence via scripts/etl-all.sh
+npm run setup:infra         # Provision Cloudflare D1 and Vectorize infra via scripts/setup-infra.sh
+npm run data:validate       # Validate ingested data integrity via scripts/validate.ts
+```
+
 All scripts use `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` for local development.
 
 ---
@@ -204,16 +222,18 @@ All scripts use `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` for local dev
 
 ### Cloudflare Credentials
 
-The server reads Cloudflare credentials using a two-prefix fallback strategy:
+Most server credentials follow a two-prefix fallback strategy: `BIBLE_*` for mctx deployment (primary) and a dev-specific name as fallback. Two variables — `D1_DATABASE_ID` and `VECTORIZE_INDEX_NAME` — do not follow this pattern; they use a single name in both environments (no `BIBLE_*` variant exists in the code).
 
 | Variable | Purpose |
 |---|---|
-| `BIBLE_ACCOUNT_ID` | mctx deployment (primary) |
-| `CLOUDFLARE_ACCOUNT_ID` | Local dev fallback |
-| `BIBLE_API_TOKEN` | mctx deployment (primary) |
-| `CLOUDFLARE_API_TOKEN` | Local dev fallback |
-| `BIBLE_TOPIC_INDEX_NAME` | Vectorize topic index name (mctx deployment, primary) |
-| `VECTORIZE_TOPIC_INDEX_NAME` | Vectorize topic index name (local dev fallback) |
+| `BIBLE_ACCOUNT_ID` | Cloudflare account ID — mctx deployment (primary) |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID — local dev fallback |
+| `BIBLE_API_TOKEN` | Cloudflare API token — mctx deployment (primary) |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token — local dev fallback |
+| `D1_DATABASE_ID` | D1 database ID — single name, used in both mctx and local dev |
+| `VECTORIZE_INDEX_NAME` | Vectorize verse index name — single name, used in both mctx and local dev |
+| `BIBLE_TOPIC_INDEX_NAME` | Vectorize topic index name — mctx deployment (primary) |
+| `VECTORIZE_TOPIC_INDEX_NAME` | Vectorize topic index name — local dev fallback |
 
 **`BIBLE_*` prefix** — Used when the server is deployed on the mctx platform. Set these in the mctx dashboard under your server's environment configuration.
 
