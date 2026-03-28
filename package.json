@@ -64,7 +64,7 @@
     "@mctx-ai/dev": "^1.0.0",
     "@types/node": "^25.3.5",
     "esbuild": "^0.27.3",
-    "eslint": "^9.17.0",
+    "eslint": "^10.1.0",
     "eslint-config-prettier": "^10.1.8",
     "npm-run-all2": "^7.0.2",
     "prettier": "^3.8.1",
