@@ -491,7 +491,7 @@ async function loadMorphologyRows(
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  console.log('Bible Study App — Morphology ETL');
+  console.log('Bible Study MCP Server — Morphology ETL');
   console.log('==================================\n');
 
   // Validate required environment variables

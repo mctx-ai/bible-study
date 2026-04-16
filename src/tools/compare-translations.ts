@@ -39,7 +39,12 @@ interface CompareTranslationsResult {
 const compareTranslations: ToolHandler = async (args, _ask?) => {
   await ensureInitialized();
 
-  const { book: bookInput, chapter, verse_start, verse_end } = args as {
+  const {
+    book: bookInput,
+    chapter,
+    verse_start,
+    verse_end,
+  } = args as {
     book: string;
     chapter: number;
     verse_start: number;
@@ -62,9 +67,7 @@ const compareTranslations: ToolHandler = async (args, _ask?) => {
     throw new Error(`verse_start must be a positive integer; got ${verse_start}`);
   }
   if (!Number.isInteger(resolvedVerseEnd) || resolvedVerseEnd < verse_start) {
-    throw new Error(
-      `verse_end must be >= verse_start (${verse_start}); got ${resolvedVerseEnd}`
-    );
+    throw new Error(`verse_end must be >= verse_start (${verse_start}); got ${resolvedVerseEnd}`);
   }
 
   const translations = getAllTranslations();
@@ -83,7 +86,7 @@ const compareTranslations: ToolHandler = async (args, _ask?) => {
        AND v.verse >= ?
        AND v.verse <= ?
      ORDER BY v.verse ASC, t.abbreviation ASC`,
-    [book.id, chapter, verse_start, resolvedVerseEnd]
+    [book.id, chapter, verse_start, resolvedVerseEnd],
   );
 
   // Group rows by verse number
@@ -131,7 +134,7 @@ compareTranslations.annotations = {
 
 compareTranslations.description =
   'Show a known Bible passage side-by-side across all 5 translations (KJV, WEB, ASV, YLT, DBY). Use when the relevant verse or passage has already been identified and the goal is to compare wording, nuance, or translation choices across renderings. ' +
-  'This helps interpret a passage; it does not discover the Bible\'s major teaching on a topic.';
+  "This helps interpret a passage; it does not discover the Bible's major teaching on a topic.";
 
 compareTranslations.input = {
   book: T.string({

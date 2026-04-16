@@ -71,7 +71,7 @@ const LOCATION_CHUNK_SIZE = 30;
 
 function buildVectorizeFilter(
   bookId: number | undefined,
-  testament: string | undefined
+  testament: string | undefined,
 ): Record<string, string | number> | undefined {
   const filter: Record<string, string | number> = {};
 
@@ -125,7 +125,7 @@ interface D1VerseRow {
 
 async function fetchVersesByTranslation(
   locations: Array<{ book_id: number; chapter: number; verse: number }>,
-  translationId: number
+  translationId: number,
 ): Promise<D1VerseRow[]> {
   if (locations.length === 0) return [];
 
@@ -146,11 +146,7 @@ async function fetchVersesByTranslation(
         .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ?)')
         .join(' OR ');
 
-      const params: unknown[] = chunk.flatMap((loc) => [
-        loc.book_id,
-        loc.chapter,
-        loc.verse,
-      ]);
+      const params: unknown[] = chunk.flatMap((loc) => [loc.book_id, loc.chapter, loc.verse]);
       params.push(translationId);
 
       const sql = `
@@ -183,14 +179,14 @@ async function fetchVersesByTranslation(
       }));
 
       allRows.push(...rows);
-    })
+    }),
   );
 
   return allRows;
 }
 
 async function fetchVersesByLocations(
-  locations: Array<{ book_id: number; chapter: number; verse: number }>
+  locations: Array<{ book_id: number; chapter: number; verse: number }>,
 ): Promise<D1VerseRow[]> {
   if (locations.length === 0) return [];
 
@@ -209,11 +205,7 @@ async function fetchVersesByLocations(
         .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ?)')
         .join(' OR ');
 
-      const params: unknown[] = chunk.flatMap((loc) => [
-        loc.book_id,
-        loc.chapter,
-        loc.verse,
-      ]);
+      const params: unknown[] = chunk.flatMap((loc) => [loc.book_id, loc.chapter, loc.verse]);
 
       const sql = `
         SELECT
@@ -244,7 +236,7 @@ async function fetchVersesByLocations(
       }));
 
       allRows.push(...rows);
-    })
+    }),
   );
 
   return allRows;
@@ -270,10 +262,7 @@ const searchBible: ToolHandler = async (args, _ask?) => {
   };
 
   // Validate and clamp limit.
-  const limit = Math.min(
-    Math.max(1, Math.floor(limitRaw ?? DEFAULT_LIMIT)),
-    MAX_LIMIT
-  );
+  const limit = Math.min(Math.max(1, Math.floor(limitRaw ?? DEFAULT_LIMIT)), MAX_LIMIT);
 
   // Resolve optional book filter.
   let bookFilter: Book | undefined;
@@ -336,7 +325,7 @@ const searchBible: ToolHandler = async (args, _ask?) => {
     // translation. This is more reliable than Vectorize metadata filtering, which can
     // silently drop candidates during ANN retrieval.
     const translationMatches = matches.filter(
-      (match) => match.metadata?.['translation_id'] === translationId
+      (match) => match.metadata?.['translation_id'] === translationId,
     );
 
     // Collect valid locations from the filtered vector matches.
@@ -374,15 +363,9 @@ const searchBible: ToolHandler = async (args, _ask?) => {
     const rows = await fetchVersesByTranslation(locations, translationId);
 
     const results: VerseResult[] = rows.map((row) => {
-      const score =
-        scoreByLocation.get(`${row.book_id}:${row.chapter}:${row.verse}`) ?? 0;
+      const score = scoreByLocation.get(`${row.book_id}:${row.chapter}:${row.verse}`) ?? 0;
       const book = resolveBook(row.book_name) ?? ({ id: row.book_id, name: row.book_name } as Book);
-      const citation: Citation = makeCitation(
-        book,
-        row.chapter,
-        row.verse,
-        row.translation_abbrev
-      );
+      const citation: Citation = makeCitation(book, row.chapter, row.verse, row.translation_abbrev);
       return { citation, text: row.text, score };
     });
 

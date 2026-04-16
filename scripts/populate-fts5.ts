@@ -2,7 +2,7 @@
 /**
  * populate-fts5.ts
  *
- * Populates (or rebuilds) the FTS5 full-text search index for the Bible Study App.
+ * Populates (or rebuilds) the FTS5 full-text search index for the Bible Study MCP Server.
  *
  * The verses_fts virtual table is a content table backed by the verses table.
  * On first run this script inserts all verse text into the index. On re-runs it
@@ -35,7 +35,7 @@ function log(msg: string): void {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  console.log('Bible Study App — FTS5 Index Population');
+  console.log('Bible Study MCP Server — FTS5 Index Population');
   console.log('=========================================\n');
 
   const required = ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'D1_DATABASE_ID'];

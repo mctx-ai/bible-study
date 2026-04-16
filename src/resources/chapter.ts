@@ -39,7 +39,11 @@ interface ErrorResult {
 const handler: ResourceHandler = async (params) => {
   await ensureInitialized();
 
-  const { translation: translationParam, book, chapter } = params as {
+  const {
+    translation: translationParam,
+    book,
+    chapter,
+  } = params as {
     translation: string;
     book: string;
     chapter: string;
@@ -86,7 +90,7 @@ const handler: ResourceHandler = async (params) => {
         AND v.book_id = ?
         AND v.chapter = ?
       ORDER BY v.verse`,
-    [translation.id, resolvedBook.id, chapterNum]
+    [translation.id, resolvedBook.id, chapterNum],
   );
 
   if (queryResult.results.length === 0) {

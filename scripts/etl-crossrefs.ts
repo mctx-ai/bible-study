@@ -514,7 +514,7 @@ function votesToConfidence(votes: number): number {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  console.log('Bible Study App — Cross-Reference ETL');
+  console.log('Bible Study MCP Server — Cross-Reference ETL');
   console.log('======================================\n');
 
   // Validate required environment variables

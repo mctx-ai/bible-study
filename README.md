@@ -2,9 +2,13 @@
 
 A complete scholarly Bible study toolkit — semantic search, original-language word studies, translation comparison, cross-reference traversal, and topical research — available as AI-native tools for the first time.
 
-Without this App, deep Bible study means juggling multiple browser tabs: a concordance site here, a lexicon there, a translation comparison tool somewhere else. You lose the thread of your research every time you switch. This App brings all of that into your AI assistant, where each result informs the next question and the entire study session stays in one conversation.
+Without this server, deep Bible study means juggling multiple browser tabs: a concordance site here, a lexicon there, a translation comparison tool somewhere else. You lose the thread of your research every time you switch. This server brings all of that into your AI assistant, where each result informs the next question and the entire study session stays in one conversation.
 
-Unlike asking your AI from general knowledge, this App gives your assistant access to structured scholarly data that no training set contains: 17,543 Strong's entries with full BDB and Thayer lexicon definitions, morphological parsing for 447,734 individual words, the complete OpenBible cross-reference dataset, and Nave's 5,319 topical categories.
+---
+
+## Why This Is Different
+
+Most AI assistants answer Bible questions from training data alone — approximations drawn from whatever made it into the model. This server gives your assistant access to structured scholarly data that no training set contains: 17,543 Strong's entries with full BDB and Thayer lexicon definitions, morphological parsing for 447,734 individual words, the complete OpenBible cross-reference dataset, and Nave's 5,319 topical categories. When you ask about the Greek word for grace or the cross-references for John 3:16, the answer comes from the primary sources — not a paraphrase of them.
 
 ---
 
@@ -28,7 +32,7 @@ Unlike asking your AI from general knowledge, this App gives your assistant acce
 
 ## How It Works
 
-When you ask a Bible study question, the App queries a purpose-built database and returns structured data your AI assistant can reason about directly. The AI gets facts and definitions, not HTML pages it has to summarize.
+When you ask a Bible study question, the server queries a purpose-built database and returns structured data your AI assistant can reason about directly. The AI gets facts and definitions, not HTML pages it has to summarize.
 
 Seven capabilities work together: meaning-based verse discovery, curated thematic research with major witnesses, keyword search, word frequency across books, side-by-side translation rendering, passage-to-passage connections, and original-language deep dives.
 
@@ -36,9 +40,9 @@ Because each query returns structured data, the tools chain naturally in a singl
 
 ---
 
-## Using This App
+## Using This Server
 
-Once subscribed, just talk to your AI assistant as you normally would. Ask your Bible study questions naturally — no special syntax. The assistant handles the research behind the scenes.
+Once subscribed, talk to your AI assistant as you normally would — no special syntax or commands required. Ask Bible study questions the same way you would ask a knowledgeable colleague: "What does the Greek say here?", "What other passages connect to this one?", or "What does the Bible teach about covenant?" The assistant routes each question to the right tools automatically and weaves the results into its response, so your research thread stays intact from the first question to the last.
 
 ---
 
@@ -75,7 +79,17 @@ You are preparing to preach or teach and need cross-references, lexical support,
 
 ---
 
-## Example Responses
+## Real-World Workflows
+
+**The pastor drafting Sunday's sermon on Wednesday afternoon.** She's preaching on Psalm 23 and wants to know how the Hebrew behind "restore my soul" has been translated across history. She asks her AI assistant to pull the Strong's entry for the root verb, compare how KJV, ASV, and YLT each render it, and surface the cross-references that echo the same idea in the New Testament. The server returns the BDB definition, the morphological parsing, all five translation renderings, and a set of linked passages — in one response. She picks up the same conversation Friday morning to chase down the Isaiah parallels she bookmarked.
+
+**The seminary student writing an exegesis paper on Ephesians 2:8–9.** He needs to demonstrate awareness of the Greek grammar, the lexical range of *charis*, and how the passage connects to the broader Pauline corpus. He asks for a word study on the Greek for "grace," then separately queries the cross-references to see which passages the OpenBible dataset links to this verse. He uses the semantic search to find thematically related passages that don't share the exact word, and pastes the structured results directly into his annotated bibliography notes. The entire research thread lives in one session so he can pick up the next day without losing context.
+
+**The small group leader preparing a discussion on forgiveness.** She wants more than a keyword search — she wants the topical shape of what the Bible teaches. She opens with Nave's for "forgiveness," scans the subcategories and associated verses, then asks the server to compare how three translations render a verse that surprised her. When her group asks on Thursday night why a particular translation says "pardon" where others say "forgive," she already has the lexical answer ready.
+
+---
+
+### What Responses Look Like
 
 **Word study on "grace" in Ephesians 2:8:**
 
@@ -98,13 +112,3 @@ You are preparing to preach or teach and need cross-references, lexical support,
 > **Psalms** — 28 references across 15 chapters. *Why it matters:* The poetry of lament and trust, where suffering finds voice and faith endures. *Themes matched:* Lament, crying out, divine refuge, trust under affliction. *Suggested anchor passages:* Psalm 23 (confidence), Psalm 42 (deep questioning), Psalm 88 (darkest lament).
 >
 > **Verse results:** 2 Corinthians 1:4 — God comforts us in all our affliction (Nave's: AFFLICTION + Semantic). 1 Peter 4:19 — let those who suffer according to God's will entrust their souls to a faithful Creator (Semantic). Job 1:21 — the Lord gave, and the Lord has taken away; blessed be the name of the Lord (Nave's: SUFFERING).
-
----
-
-## How Subscribers Use It
-
-**The pastor drafting Sunday's sermon on Wednesday afternoon.** She's preaching on Psalm 23 and wants to know how the Hebrew behind "restore my soul" has been translated across history. She asks her AI assistant to pull the Strong's entry for the root verb, compare how KJV, ASV, and YLT each render it, and surface the cross-references that echo the same idea in the New Testament. The server returns the BDB definition, the morphological parsing, all five translation renderings, and a set of linked passages — in one response. She picks up the same conversation Friday morning to chase down the Isaiah parallels she bookmarked.
-
-**The seminary student writing an exegesis paper on Ephesians 2:8–9.** He needs to demonstrate awareness of the Greek grammar, the lexical range of *charis*, and how the passage connects to the broader Pauline corpus. He asks for a word study on the Greek for "grace," then separately queries the cross-references to see which passages the OpenBible dataset links to this verse. He uses the semantic search to find thematically related passages that don't share the exact word, and pastes the structured results directly into his annotated bibliography notes. The entire research thread lives in one session so he can pick up the next day without losing context.
-
-**The small group leader preparing a discussion on forgiveness.** She wants more than a keyword search — she wants the topical shape of what the Bible teaches. She opens with Nave's for "forgiveness," scans the subcategories and associated verses, then asks the server to compare how three translations render a verse that surprised her. When her group asks on Thursday night why a particular translation says "pardon" where others say "forgive," she already has the lexical answer ready.

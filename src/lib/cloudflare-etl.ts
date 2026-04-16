@@ -29,7 +29,7 @@ export function sqlLiteral(value: unknown): string {
   }
   if (typeof value === 'object') {
     throw new TypeError(
-      `sqlLiteral does not accept objects; got ${Object.prototype.toString.call(value)}`
+      `sqlLiteral does not accept objects; got ${Object.prototype.toString.call(value)}`,
     );
   }
   // string (and fallback for anything else)
@@ -49,14 +49,12 @@ const ROWS_PER_INSERT = 200;
 export function buildMultiRowInserts(
   prefix: string,
   rows: unknown[][],
-  rowsPerInsert: number = ROWS_PER_INSERT
+  rowsPerInsert: number = ROWS_PER_INSERT,
 ): string {
   const lines: string[] = [];
   for (let start = 0; start < rows.length; start += rowsPerInsert) {
     const chunk = rows.slice(start, start + rowsPerInsert);
-    const tuples = chunk
-      .map((row) => `(${row.map(sqlLiteral).join(', ')})`)
-      .join(', ');
+    const tuples = chunk.map((row) => `(${row.map(sqlLiteral).join(', ')})`).join(', ');
     lines.push(`${prefix} ${tuples};`);
   }
   return lines.join('\n') + '\n';
@@ -69,15 +67,13 @@ export function inlineParams(sql: string, params: unknown[]): string {
   let paramIndex = 0;
   const result = sql.replace(/\?/g, () => {
     if (paramIndex >= params.length) {
-      throw new Error(
-        `SQL has more '?' placeholders than params: ${sql}`
-      );
+      throw new Error(`SQL has more '?' placeholders than params: ${sql}`);
     }
     return sqlLiteral(params[paramIndex++]);
   });
   if (paramIndex < params.length) {
     console.warn(
-      `[cloudflare-etl] inlineParams: ${params.length - paramIndex} extra param(s) unused for SQL: ${sql}`
+      `[cloudflare-etl] inlineParams: ${params.length - paramIndex} extra param(s) unused for SQL: ${sql}`,
     );
   }
   return result;
@@ -95,9 +91,7 @@ export function inlineParams(sql: string, params: unknown[]): string {
  * All other statement shapes are emitted as-is with params inlined
  * by positional substitution of '?' placeholders.
  */
-export function buildSqlFile(
-  statements: Array<{ sql: string; params?: unknown[] }>
-): string {
+export function buildSqlFile(statements: Array<{ sql: string; params?: unknown[] }>): string {
   // Split into INSERT groups vs other statements
   // We detect INSERT statements by looking for VALUES keyword so we can
   // group multiple rows into a single multi-value INSERT.
@@ -130,8 +124,7 @@ export function buildSqlFile(
         const nextValuesIdx = nextUpper.indexOf('VALUES');
         if (
           nextValuesIdx !== -1 &&
-          next.sql.slice(0, nextValuesIdx + 'VALUES'.length).trimEnd() ===
-            prefix
+          next.sql.slice(0, nextValuesIdx + 'VALUES'.length).trimEnd() === prefix
         ) {
           run.push(next.params ?? []);
           i++;
@@ -143,9 +136,7 @@ export function buildSqlFile(
       // Emit in chunks of ROWS_PER_INSERT
       for (let start = 0; start < run.length; start += ROWS_PER_INSERT) {
         const chunk = run.slice(start, start + ROWS_PER_INSERT);
-        const tuples = chunk
-          .map((params) => `(${params.map(sqlLiteral).join(', ')})`)
-          .join(', ');
+        const tuples = chunk.map((params) => `(${params.map(sqlLiteral).join(', ')})`).join(', ');
         lines.push(`${prefix} ${tuples};`);
       }
     } else {
@@ -170,10 +161,9 @@ async function d1BatchFile(sql: string): Promise<void> {
   const tmpFile = join(tmpdir(), `d1-batch-${Date.now()}-${process.pid}.sql`);
   try {
     writeFileSync(tmpFile, sql, 'utf8');
-    execSync(
-      `npx wrangler d1 execute ${d1DatabaseName} --remote --file="${tmpFile}"`,
-      { stdio: 'inherit' }
-    );
+    execSync(`npx wrangler d1 execute ${d1DatabaseName} --remote --file="${tmpFile}"`, {
+      stdio: 'inherit',
+    });
   } finally {
     try {
       unlinkSync(tmpFile);
@@ -189,9 +179,7 @@ async function d1BatchFile(sql: string): Promise<void> {
  * are grouped into multi-value INSERTs (up to 200 rows each).
  * No 100-statement limit — wrangler handles internal batching.
  */
-async function d1Batch(
-  statements: Array<{ sql: string; params?: unknown[] }>
-): Promise<void> {
+async function d1Batch(statements: Array<{ sql: string; params?: unknown[] }>): Promise<void> {
   if (statements.length === 0) return;
 
   const sql = buildSqlFile(statements);

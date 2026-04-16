@@ -44,18 +44,25 @@ const CONCORDANCE_MAX_LIMIT = 500;
 const concordance: ToolHandler = async (args, _ask?) => {
   await ensureInitialized();
 
-  const { query, translation, limit: rawLimit } = args as {
+  const {
+    query,
+    translation,
+    limit: rawLimit,
+  } = args as {
     query: string;
     translation?: string;
     limit?: number;
   };
 
-  const limit = Math.max(1, Math.floor(Math.min(rawLimit ?? CONCORDANCE_DEFAULT_LIMIT, CONCORDANCE_MAX_LIMIT)));
+  const limit = Math.max(
+    1,
+    Math.floor(Math.min(rawLimit ?? CONCORDANCE_DEFAULT_LIMIT, CONCORDANCE_MAX_LIMIT)),
+  );
 
   // Validate translation filter if provided.
   if (translation !== undefined && !isValidTranslation(translation)) {
     throw new Error(
-      `Unknown translation "${translation}". Use the bible://translations resource to list available translations.`
+      `Unknown translation "${translation}". Use the bible://translations resource to list available translations.`,
     );
   }
 

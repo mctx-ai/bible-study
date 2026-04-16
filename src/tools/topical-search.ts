@@ -77,7 +77,7 @@ const MAX_MAJOR_WITNESSES_NARRATIVE = 5;
 // direct topical relevance). The increase is intentionally moderate — raising
 // too high (e.g. 0.65) removes legitimate witnesses for queries like "end
 // times prophecy" where many books score similarly.
-const WITNESS_SCORE_CUTOFF = 0.60;
+const WITNESS_SCORE_CUTOFF = 0.6;
 // Narrative queries use a stricter cutoff — only genuinely related secondary
 // witnesses survive (e.g. Hebrews 11, 1 Peter 3 for Noah — not Exodus, Numbers).
 const WITNESS_SCORE_CUTOFF_NARRATIVE = 0.75;
@@ -300,9 +300,7 @@ function naveTopicRelevance(topicName: string, query: string): number {
 // Queries the Vectorize topics index once and splits results by ID prefix into
 // topic-level and book-level matches. Falls back to empty arrays if the topic
 // index is not configured.
-async function searchSemanticTopicsAndBooks(
-  queryVector: number[],
-): Promise<{
+async function searchSemanticTopicsAndBooks(queryVector: number[]): Promise<{
   topics: Array<{ id: number; name: string; score: number }>;
   books: Array<{ book_id: number; score: number }>;
 }> {
@@ -335,10 +333,7 @@ async function searchSemanticTopicsAndBooks(
 
 // Queries nave_topic_book_salience for matching topic+book combinations.
 // Returns a Map keyed by 'bookId:topicId' → salience score.
-async function fetchSalience(
-  topicIds: number[],
-  bookIds: number[],
-): Promise<Map<string, number>> {
+async function fetchSalience(topicIds: number[], bookIds: number[]): Promise<Map<string, number>> {
   if (topicIds.length === 0 || bookIds.length === 0) return new Map();
 
   const topicPlaceholders = topicIds.map(() => '?').join(', ');
@@ -372,10 +367,33 @@ async function queryExpandedTopicsByLike(
   // faithfulness during suffering" matches topics containing any of those
   // words. Skip short/common words to avoid overly broad matches.
   const stopWords = new Set([
-    'the', 'and', 'for', 'but', 'not', 'with', 'from', 'that', 'this',
-    'into', 'over', 'upon', 'also', 'than', 'then', 'them', 'they',
-    'have', 'been', 'were', 'will', 'does', 'done', 'during', 'about',
-    "god's", 'gods',
+    'the',
+    'and',
+    'for',
+    'but',
+    'not',
+    'with',
+    'from',
+    'that',
+    'this',
+    'into',
+    'over',
+    'upon',
+    'also',
+    'than',
+    'then',
+    'them',
+    'they',
+    'have',
+    'been',
+    'were',
+    'will',
+    'does',
+    'done',
+    'during',
+    'about',
+    "god's",
+    'gods',
   ]);
 
   const words = topic
@@ -493,9 +511,7 @@ async function expandTopicsByCooccurrence(
 
 const WITNESS_CHUNK_SIZE = 100;
 
-async function aggregateWitnesses(
-  topicIds: number[],
-): Promise<WitnessCandidate[]> {
+async function aggregateWitnesses(topicIds: number[]): Promise<WitnessCandidate[]> {
   if (topicIds.length === 0) return [];
 
   // Defensively chunk if topic IDs exceed 100 to stay within D1 parameter limits.
@@ -551,9 +567,7 @@ async function aggregateWitnesses(
         const maxChapter = row['max_chapter'] as number;
         const topicNamesStr = row['topic_names'] as string;
 
-        const topicNames = topicNamesStr
-          ? topicNamesStr.split(',').map((n) => n.trim())
-          : [];
+        const topicNames = topicNamesStr ? topicNamesStr.split(',').map((n) => n.trim()) : [];
 
         if (!bookAgg.has(bookId)) {
           bookAgg.set(bookId, {
@@ -658,10 +672,7 @@ function detectQueryNarrative(
 
 // ─── Narrative detection ──────────────────────────────────────────────────────
 
-function detectNarrative(
-  candidate: WitnessCandidate,
-  matchedTopics: string[],
-): string | undefined {
+function detectNarrative(candidate: WitnessCandidate, matchedTopics: string[]): string | undefined {
   const totalChapters = BOOK_TOTAL_CHAPTERS[candidate.book_name];
 
   for (const topic of matchedTopics) {
@@ -671,8 +682,7 @@ function detectNarrative(
 
     // If the candidate spans fewer chapters than the full book, it's a subset.
     const spannedChapters = candidate.max_chapter - candidate.min_chapter + 1;
-    const isSubset =
-      totalChapters !== undefined && spannedChapters < totalChapters * 0.8;
+    const isSubset = totalChapters !== undefined && spannedChapters < totalChapters * 0.8;
 
     if (isSubset) {
       // Title-case the topic name as the narrative label.
@@ -696,13 +706,19 @@ function buildWitnessMatchReason(
   themesMatched?: string[],
 ): string {
   const genre = BOOK_GENRE[candidate.book_name] ?? 'Unknown';
-  const topThemes = themesMatched && themesMatched.length > 0
-    ? themesMatched.slice(0, 3)
-    : candidate.topic_names.split(',').map((n) => n.trim()).filter(Boolean).slice(0, 3);
+  const topThemes =
+    themesMatched && themesMatched.length > 0
+      ? themesMatched.slice(0, 3)
+      : candidate.topic_names
+          .split(',')
+          .map((n) => n.trim())
+          .filter(Boolean)
+          .slice(0, 3);
 
-  const themePhrase = topThemes.length > 1
-    ? topThemes.slice(0, -1).join(', ') + ' and ' + topThemes[topThemes.length - 1]
-    : topThemes[0] ?? 'this theme';
+  const themePhrase =
+    topThemes.length > 1
+      ? topThemes.slice(0, -1).join(', ') + ' and ' + topThemes[topThemes.length - 1]
+      : (topThemes[0] ?? 'this theme');
 
   if (narrative) {
     // Narrative arc within a book — focus on the story rather than counts.
@@ -966,7 +982,8 @@ async function fetchRepresentativeVerse(
       (Math.abs(effectiveScore - bestAnyEffectiveScore) <= SCORE_TIE_BAND &&
         bestAnyVerseRow !== undefined &&
         (verseRow.chapter < bestAnyVerseRow.chapter ||
-          (verseRow.chapter === bestAnyVerseRow.chapter && verseRow.verse < bestAnyVerseRow.verse)));
+          (verseRow.chapter === bestAnyVerseRow.chapter &&
+            verseRow.verse < bestAnyVerseRow.verse)));
 
     if (isAnyBetter) {
       bestAnyEffectiveScore = effectiveScore;
@@ -980,7 +997,8 @@ async function fetchRepresentativeVerse(
         (Math.abs(effectiveScore - bestTopicEffectiveScore) <= SCORE_TIE_BAND &&
           bestTopicVerseRow !== undefined &&
           (verseRow.chapter < bestTopicVerseRow.chapter ||
-            (verseRow.chapter === bestTopicVerseRow.chapter && verseRow.verse < bestTopicVerseRow.verse)));
+            (verseRow.chapter === bestTopicVerseRow.chapter &&
+              verseRow.verse < bestTopicVerseRow.verse)));
 
       if (isTopicBetter) {
         bestTopicEffectiveScore = effectiveScore;
@@ -1206,7 +1224,7 @@ function buildWhyThisBookMatters(
   const themePhrase =
     topThemes.length > 1
       ? topThemes.slice(0, -1).join(', ') + ' and ' + topThemes[topThemes.length - 1]
-      : topThemes[0] ?? 'this theme';
+      : (topThemes[0] ?? 'this theme');
 
   // Select a genre-appropriate explanation template.
   switch (genre) {
@@ -1238,122 +1256,122 @@ function buildWhyThisBookMatters(
 // Values are clean, human-readable labels shown in the output.
 const TOPIC_LABEL_MAP: Record<string, string> = {
   'AFFLICTIONS AND ADVERSITIES': 'affliction',
-  'AFFLICTIONS': 'affliction',
-  'ADVERSITY': 'adversity',
-  'ANGER': 'anger',
-  'ANXIETY': 'anxiety',
-  'APOSTASY': 'apostasy',
-  'ATONEMENT': 'atonement',
-  'BAPTISM': 'baptism',
-  'BLESSINGS': 'blessing',
-  'CALLING': 'calling',
-  'CHARITY': 'generosity',
-  'CHILDREN': 'children',
+  AFFLICTIONS: 'affliction',
+  ADVERSITY: 'adversity',
+  ANGER: 'anger',
+  ANXIETY: 'anxiety',
+  APOSTASY: 'apostasy',
+  ATONEMENT: 'atonement',
+  BAPTISM: 'baptism',
+  BLESSINGS: 'blessing',
+  CALLING: 'calling',
+  CHARITY: 'generosity',
+  CHILDREN: 'children',
   'CHILDREN OF ISRAEL': 'Israel',
-  'CHRIST': 'Christ',
-  'CHURCH': 'the church',
-  'COMFORT': 'comfort',
-  'COMMANDMENTS': 'commandments',
-  'COMPASSION': 'compassion',
-  'CONSCIENCE': 'conscience',
-  'CONTENTMENT': 'contentment',
-  'COURAGE': 'courage',
-  'COVENANT': 'covenant',
-  'COVETOUSNESS': 'covetousness',
-  'CREATION': 'creation',
-  'DEATH': 'death',
-  'DELIVERANCE': 'deliverance',
-  'DISCIPLESHIP': 'discipleship',
-  'DISCIPLINE': 'discipline',
+  CHRIST: 'Christ',
+  CHURCH: 'the church',
+  COMFORT: 'comfort',
+  COMMANDMENTS: 'commandments',
+  COMPASSION: 'compassion',
+  CONSCIENCE: 'conscience',
+  CONTENTMENT: 'contentment',
+  COURAGE: 'courage',
+  COVENANT: 'covenant',
+  COVETOUSNESS: 'covetousness',
+  CREATION: 'creation',
+  DEATH: 'death',
+  DELIVERANCE: 'deliverance',
+  DISCIPLESHIP: 'discipleship',
+  DISCIPLINE: 'discipline',
   'DIVINE GUIDANCE': 'guidance',
   'DIVINE PROTECTION': 'protection',
   'DIVINE SOVEREIGNTY': 'sovereignty',
-  'DOUBT': 'doubt',
-  'ELECTION': 'election',
-  'ENDURANCE': 'endurance',
+  DOUBT: 'doubt',
+  ELECTION: 'election',
+  ENDURANCE: 'endurance',
   'ETERNAL LIFE': 'eternal life',
-  'EVANGELISM': 'evangelism',
-  'EVIL': 'evil',
-  'EXILE': 'exile',
-  'FAITH': 'faith',
-  'FAITHFULNESS': 'faithfulness',
-  'FAMILY': 'family',
-  'FASTING': 'fasting',
-  'FEAR': 'fear',
+  EVANGELISM: 'evangelism',
+  EVIL: 'evil',
+  EXILE: 'exile',
+  FAITH: 'faith',
+  FAITHFULNESS: 'faithfulness',
+  FAMILY: 'family',
+  FASTING: 'fasting',
+  FEAR: 'fear',
   'FEAR OF GOD': 'fear of God',
-  'FORGIVENESS': 'forgiveness',
-  'FRIENDSHIP': 'friendship',
-  'GENEROSITY': 'generosity',
-  'GLORIFICATION': 'glorification',
-  'GLORY': 'glory',
-  'GOD': 'God',
-  'GRACE': 'grace',
-  'GRATITUDE': 'gratitude',
-  'GRIEF': 'grief',
-  'GUIDANCE': 'guidance',
-  'HEALING': 'healing',
-  'HOLINESS': 'holiness',
+  FORGIVENESS: 'forgiveness',
+  FRIENDSHIP: 'friendship',
+  GENEROSITY: 'generosity',
+  GLORIFICATION: 'glorification',
+  GLORY: 'glory',
+  GOD: 'God',
+  GRACE: 'grace',
+  GRATITUDE: 'gratitude',
+  GRIEF: 'grief',
+  GUIDANCE: 'guidance',
+  HEALING: 'healing',
+  HOLINESS: 'holiness',
   'HOLY SPIRIT': 'the Holy Spirit',
-  'HOPE': 'hope',
-  'HUMILITY': 'humility',
-  'IDOLATRY': 'idolatry',
-  'ISRAEL': 'Israel',
+  HOPE: 'hope',
+  HUMILITY: 'humility',
+  IDOLATRY: 'idolatry',
+  ISRAEL: 'Israel',
   'JESUS CHRIST': 'Jesus Christ',
-  'JOY': 'joy',
-  'JUDGMENT': 'judgment',
-  'JUSTICE': 'justice',
+  JOY: 'joy',
+  JUDGMENT: 'judgment',
+  JUSTICE: 'justice',
   'KINGDOM OF GOD': 'the kingdom of God',
-  'LAW': 'the law',
-  'LAMENT': 'lament',
-  'LEADERSHIP': 'leadership',
-  'LIGHT': 'light',
-  'LONELINESS': 'loneliness',
-  'LORD': 'the Lord',
-  'LOVE': 'love',
-  'LOVE OF GOD': 'God\'s love',
-  'MARRIAGE': 'marriage',
-  'MERCY': 'mercy',
-  'MISSIONS': 'missions',
-  'OBEDIENCE': 'obedience',
-  'OMNIPOTENCE': 'God\'s power',
-  'PATIENCE': 'patience',
-  'PEACE': 'peace',
-  'PERSEVERANCE': 'perseverance',
-  'PRAISE': 'praise',
-  'PRAYER': 'prayer',
-  'PRIDE': 'pride',
-  'PROPHECY': 'prophecy',
-  'PROVIDENCE': 'providence',
-  'PURIFICATION': 'purification',
-  'REDEMPTION': 'redemption',
-  'RENEWAL': 'renewal',
-  'REPENTANCE': 'repentance',
-  'RESTORATION': 'restoration',
-  'RESURRECTION': 'resurrection',
-  'REVELATION': 'revelation',
-  'RIGHTEOUSNESS': 'righteousness',
-  'SACRIFICE': 'sacrifice',
-  'SALVATION': 'salvation',
-  'SANCTIFICATION': 'sanctification',
-  'SERVANT': 'servanthood',
-  'SERVICE': 'service',
-  'SIN': 'sin',
-  'SOVEREIGNTY OF GOD': 'God\'s sovereignty',
-  'STRENGTH': 'strength',
-  'SUFFERING': 'suffering',
-  'TEMPTATION': 'temptation',
-  'THANKSGIVING': 'thanksgiving',
-  'TRIALS': 'trials',
-  'TRUST': 'trust',
-  'TRUTH': 'truth',
-  'UNFAITHFULNESS': 'unfaithfulness',
-  'UNITY': 'unity',
-  'VICTORY': 'victory',
-  'WISDOM': 'wisdom',
-  'WORKS': 'works',
-  'WORSHIP': 'worship',
-  'WRATH': 'wrath',
-  'WRATH OF GOD': 'God\'s wrath',
+  LAW: 'the law',
+  LAMENT: 'lament',
+  LEADERSHIP: 'leadership',
+  LIGHT: 'light',
+  LONELINESS: 'loneliness',
+  LORD: 'the Lord',
+  LOVE: 'love',
+  'LOVE OF GOD': "God's love",
+  MARRIAGE: 'marriage',
+  MERCY: 'mercy',
+  MISSIONS: 'missions',
+  OBEDIENCE: 'obedience',
+  OMNIPOTENCE: "God's power",
+  PATIENCE: 'patience',
+  PEACE: 'peace',
+  PERSEVERANCE: 'perseverance',
+  PRAISE: 'praise',
+  PRAYER: 'prayer',
+  PRIDE: 'pride',
+  PROPHECY: 'prophecy',
+  PROVIDENCE: 'providence',
+  PURIFICATION: 'purification',
+  REDEMPTION: 'redemption',
+  RENEWAL: 'renewal',
+  REPENTANCE: 'repentance',
+  RESTORATION: 'restoration',
+  RESURRECTION: 'resurrection',
+  REVELATION: 'revelation',
+  RIGHTEOUSNESS: 'righteousness',
+  SACRIFICE: 'sacrifice',
+  SALVATION: 'salvation',
+  SANCTIFICATION: 'sanctification',
+  SERVANT: 'servanthood',
+  SERVICE: 'service',
+  SIN: 'sin',
+  'SOVEREIGNTY OF GOD': "God's sovereignty",
+  STRENGTH: 'strength',
+  SUFFERING: 'suffering',
+  TEMPTATION: 'temptation',
+  THANKSGIVING: 'thanksgiving',
+  TRIALS: 'trials',
+  TRUST: 'trust',
+  TRUTH: 'truth',
+  UNFAITHFULNESS: 'unfaithfulness',
+  UNITY: 'unity',
+  VICTORY: 'victory',
+  WISDOM: 'wisdom',
+  WORKS: 'works',
+  WORSHIP: 'worship',
+  WRATH: 'wrath',
+  'WRATH OF GOD': "God's wrath",
 };
 
 // Transforms a raw Nave's topic name into a user-facing thematic label.
@@ -1577,9 +1595,23 @@ async function fetchAnchorPassageData(
 // Keywords that indicate a comfort/hope/faithfulness theme in the query.
 // Used by Prophecy clustering to bias toward consolation sections.
 const CONSOLATION_KEYWORDS = [
-  'comfort', 'hope', 'faithful', 'faithfulness', 'promise', 'restore',
-  'restoration', 'consolation', 'peace', 'salvation', 'redemption',
-  'deliverance', 'mercy', 'grace', 'blessing', 'renewal', 'trust',
+  'comfort',
+  'hope',
+  'faithful',
+  'faithfulness',
+  'promise',
+  'restore',
+  'restoration',
+  'consolation',
+  'peace',
+  'salvation',
+  'redemption',
+  'deliverance',
+  'mercy',
+  'grace',
+  'blessing',
+  'renewal',
+  'trust',
 ];
 
 // Returns true when the query topic semantically relates to comfort or hope.
@@ -1611,12 +1643,24 @@ function buildSpans(
   chapters: AnchorChapterRow[],
   maxGap: number,
 ): Array<{ start: number; end: number; totalHits: number; minVerse: number; maxVerse: number }> {
-  const spans: Array<{ start: number; end: number; totalHits: number; minVerse: number; maxVerse: number }> = [];
-  let currentSpan: typeof spans[0] | null = null;
+  const spans: Array<{
+    start: number;
+    end: number;
+    totalHits: number;
+    minVerse: number;
+    maxVerse: number;
+  }> = [];
+  let currentSpan: (typeof spans)[0] | null = null;
 
   for (const row of chapters) {
     if (!currentSpan) {
-      currentSpan = { start: row.chapter, end: row.chapter, totalHits: row.hit_count, minVerse: row.min_verse, maxVerse: row.max_verse };
+      currentSpan = {
+        start: row.chapter,
+        end: row.chapter,
+        totalHits: row.hit_count,
+        minVerse: row.min_verse,
+        maxVerse: row.max_verse,
+      };
     } else if (row.chapter - currentSpan.end <= maxGap) {
       currentSpan.end = row.chapter;
       currentSpan.totalHits += row.hit_count;
@@ -1624,7 +1668,13 @@ function buildSpans(
       currentSpan.maxVerse = Math.max(currentSpan.maxVerse, row.max_verse);
     } else {
       spans.push(currentSpan);
-      currentSpan = { start: row.chapter, end: row.chapter, totalHits: row.hit_count, minVerse: row.min_verse, maxVerse: row.max_verse };
+      currentSpan = {
+        start: row.chapter,
+        end: row.chapter,
+        totalHits: row.hit_count,
+        minVerse: row.min_verse,
+        maxVerse: row.max_verse,
+      };
     }
   }
   if (currentSpan) spans.push(currentSpan);
@@ -1648,10 +1698,7 @@ function buildSpans(
 //
 // Epistle and default: Density-based consecutive clustering (unchanged).
 
-function clusterPoetry(
-  rows: AnchorChapterRow[],
-  bookName: string,
-): string[] {
+function clusterPoetry(rows: AnchorChapterRow[], bookName: string): string[] {
   if (rows.length === 0) return [];
   // Return up to 3 individual dense chapters — no consecutive merging.
   const sorted = [...rows].sort((a, b) => b.hit_count - a.hit_count);
@@ -1700,7 +1747,7 @@ function clusterNarrative(
   const arcRepresentatives: AnchorChapterRow[] = [];
   for (const arcRows of [entryRows, crisisRows, resolutionRows]) {
     if (arcRows.length === 0) continue;
-    const densest = arcRows.reduce((best, r) => r.hit_count > best.hit_count ? r : best);
+    const densest = arcRows.reduce((best, r) => (r.hit_count > best.hit_count ? r : best));
     arcRepresentatives.push(densest);
   }
 
@@ -1711,9 +1758,11 @@ function clusterNarrative(
   const spans = buildSpans(arcRepresentatives, 3);
   spans.sort((a, b) => b.totalHits - a.totalHits);
 
-  return spans.slice(0, 3).map((span) =>
-    formatPassageRange(bookName, span.start, span.end, span.minVerse, span.maxVerse)
-  );
+  return spans
+    .slice(0, 3)
+    .map((span) =>
+      formatPassageRange(bookName, span.start, span.end, span.minVerse, span.maxVerse),
+    );
 }
 
 function clusterProphecy(
@@ -1752,9 +1801,11 @@ function clusterProphecy(
   const spans = buildSpans(topChapters, 2);
   spans.sort((a, b) => b.totalHits - a.totalHits);
 
-  return spans.slice(0, 3).map((span) =>
-    formatPassageRange(bookName, span.start, span.end, span.minVerse, span.maxVerse)
-  );
+  return spans
+    .slice(0, 3)
+    .map((span) =>
+      formatPassageRange(bookName, span.start, span.end, span.minVerse, span.maxVerse),
+    );
 }
 
 // Clusters chapter rows for a single book into passage range strings using a
@@ -1789,12 +1840,7 @@ function clusterToPassageRanges(
   }
 
   // Narrative: arc-based clustering (Law, History, Gospel, Acts).
-  if (
-    genre === 'Law' ||
-    genre === 'History' ||
-    genre === 'Gospel' ||
-    genre === 'Acts'
-  ) {
+  if (genre === 'Law' || genre === 'History' || genre === 'Gospel' || genre === 'Acts') {
     return clusterNarrative(rows, bookName, totalBookChapters);
   }
 
@@ -1824,9 +1870,11 @@ function clusterToPassageRanges(
   spans.sort((a, b) => b.totalHits - a.totalHits);
 
   // Emit up to 3 passage range strings.
-  return spans.slice(0, 3).map((span) =>
-    formatPassageRange(bookName, span.start, span.end, span.minVerse, span.maxVerse)
-  );
+  return spans
+    .slice(0, 3)
+    .map((span) =>
+      formatPassageRange(bookName, span.start, span.end, span.minVerse, span.maxVerse),
+    );
 }
 
 // Builds a genre-aware narrative_reason string when detectNarrative returns a result.
@@ -1842,12 +1890,8 @@ function buildNarrativeReason(
   const genre = BOOK_GENRE[candidate.book_name] ?? 'Unknown';
   const chapterRange = `${candidate.book_name} ${candidate.min_chapter}–${candidate.max_chapter}`;
 
-  const topThemes = themesMatched && themesMatched.length > 0
-    ? themesMatched.slice(0, 2)
-    : [];
-  const themeClause = topThemes.length > 0
-    ? ` — particularly ${topThemes.join(' and ')}`
-    : '';
+  const topThemes = themesMatched && themesMatched.length > 0 ? themesMatched.slice(0, 2) : [];
+  const themeClause = topThemes.length > 0 ? ` — particularly ${topThemes.join(' and ')}` : '';
 
   switch (genre) {
     case 'Law':
@@ -1928,9 +1972,7 @@ function buildQueryAlignmentNote(
 ): string {
   const topThemes = themesMatched.slice(0, 2);
   const themePhrase =
-    topThemes.length > 1
-      ? topThemes[0] + ' and ' + topThemes[1]
-      : topThemes[0] ?? queryTopic;
+    topThemes.length > 1 ? topThemes[0] + ' and ' + topThemes[1] : (topThemes[0] ?? queryTopic);
 
   // Choose phrasing based on how well both signals fired.
   const hasStrongSemanticSignal = semanticHits >= 2;
@@ -1971,9 +2013,7 @@ function buildQueryAlignmentNote(
 // seed-verse counts in books that reference the topic in a different story context.
 // Example: ARK covers both Noah's ark (Genesis) and the Ark of the Covenant
 // (Exodus/Numbers); including it inflates seed counts for Exodus on a Noah query.
-const POLYSEMOUS_NARRATIVE_TOPICS = new Set([
-  'ARK', 'TEMPLE', 'TABERNACLE', 'ISRAEL', 'CHURCH',
-]);
+const POLYSEMOUS_NARRATIVE_TOPICS = new Set(['ARK', 'TEMPLE', 'TABERNACLE', 'ISRAEL', 'CHURCH']);
 
 // ─── Major witness builder ────────────────────────────────────────────────────
 
@@ -2065,7 +2105,7 @@ async function buildMajorWitnesses(
     if (seedCandidates.length === 0) {
       console.error(
         `[topical_search] narrative mode: seedCandidates is empty for query="${queryTopic}", ` +
-        `seedIdsToUse=[${seedIdsToUse.join(',')}]`,
+          `seedIdsToUse=[${seedIdsToUse.join(',')}]`,
       );
     }
 
@@ -2077,8 +2117,10 @@ async function buildMajorWitnesses(
     // from this check since they legitimately cross-reference OT narratives in their own
     // chapter structure (e.g. Heb 11:7, 1 Pet 3:20 referencing Noah).
     const primarySeedBookId = seedCandidates.length > 0 ? seedCandidates[0].book_id : undefined;
-    const primarySeedChapterMin = seedCandidates.length > 0 ? seedCandidates[0].min_chapter : undefined;
-    const primarySeedChapterMax = seedCandidates.length > 0 ? seedCandidates[0].max_chapter : undefined;
+    const primarySeedChapterMin =
+      seedCandidates.length > 0 ? seedCandidates[0].min_chapter : undefined;
+    const primarySeedChapterMax =
+      seedCandidates.length > 0 ? seedCandidates[0].max_chapter : undefined;
     // "Narrow" narrative: the primary story spans fewer than 15 chapters.
     // This threshold covers self-contained story units (e.g. Genesis 6-9 for Noah,
     // ~4 chapters) while excluding book-wide narratives (e.g. Moses across Exodus,
@@ -2091,17 +2133,12 @@ async function buildMajorWitnesses(
       primarySeedChapterMax - primarySeedChapterMin < 15;
 
     for (const sc of seedCandidates) {
-      if (
-        primaryNarrativeIsNarrow &&
-        sc.book_id !== primarySeedBookId &&
-        sc.testament === 'OT'
-      ) {
+      if (primaryNarrativeIsNarrow && sc.book_id !== primarySeedBookId && sc.testament === 'OT') {
         // Check chapter range overlap with primary narrative span.
         // No overlap means this OT book's seed verses are about a different
         // person or event (disambiguation case).
         const overlaps =
-          sc.min_chapter <= primarySeedChapterMax! &&
-          sc.max_chapter >= primarySeedChapterMin!;
+          sc.min_chapter <= primarySeedChapterMax! && sc.max_chapter >= primarySeedChapterMin!;
         if (!overlaps) {
           // Exclude from seed counts — this OT book references the topic in
           // a different context (different story, same topic name).
@@ -2115,10 +2152,7 @@ async function buildMajorWitnesses(
   // Count semantic verse hits per book — direct embedding-based relevance signal.
   const semanticHitsPerBook = new Map<number, number>();
   for (const coord of semanticCoords.values()) {
-    semanticHitsPerBook.set(
-      coord.book_id,
-      (semanticHitsPerBook.get(coord.book_id) ?? 0) + 1,
-    );
+    semanticHitsPerBook.set(coord.book_id, (semanticHitsPerBook.get(coord.book_id) ?? 0) + 1);
   }
 
   // Fetch salience using the broad topic set (including co-occurring topics) and
@@ -2139,14 +2173,13 @@ async function buildMajorWitnesses(
   // co-occurring topics (TABERNACLE, ISRAEL) that drag Exodus to the top for Noah.
   const isNarrativeModeForFilter = narrativeContext?.narrativeMode === true;
   const narrativePrimaryBookIdForFilter = isNarrativeModeForFilter
-    ? (seedCandidates.length > 0 ? seedCandidates[0].book_id : candidates[0]?.book_id)
+    ? seedCandidates.length > 0
+      ? seedCandidates[0].book_id
+      : candidates[0]?.book_id
     : undefined;
 
   const qualified = candidates.filter((c) => {
-    if (
-      isNarrativeModeForFilter &&
-      c.book_id !== narrativePrimaryBookIdForFilter
-    ) {
+    if (isNarrativeModeForFilter && c.book_id !== narrativePrimaryBookIdForFilter) {
       // Non-primary book in narrative mode: apply stricter thresholds AND
       // require at least one direct seed-topic verse. This eliminates books
       // like Exodus and Numbers for a Noah query (0 NOAH/FLOOD/ARK verses)
@@ -2160,8 +2193,7 @@ async function buildMajorWitnesses(
       );
     }
     return (
-      c.verse_count >= MAJOR_WITNESS_MIN_VERSES &&
-      c.chapter_count >= MAJOR_WITNESS_MIN_CHAPTERS
+      c.verse_count >= MAJOR_WITNESS_MIN_VERSES && c.chapter_count >= MAJOR_WITNESS_MIN_CHAPTERS
     );
   });
 
@@ -2293,9 +2325,7 @@ async function buildMajorWitnesses(
   // Build the candidate list: apply cap + cutoff, but always include the primary book.
   const cappedSlice = scored.slice(0, activeMaxWitnesses);
   const topScoredCandidates = isNarrativeMode
-    ? cappedSlice.filter(
-        (s) => s.witnessScore >= cutoff || s.candidate.book_id === primaryBookId,
-      )
+    ? cappedSlice.filter((s) => s.witnessScore >= cutoff || s.candidate.book_id === primaryBookId)
     : cappedSlice.filter((s) => s.witnessScore >= cutoff);
 
   // Build witnesses concurrently (representative verse may need D1 fallback).
@@ -2307,9 +2337,7 @@ async function buildMajorWitnesses(
         .filter(Boolean);
 
       // Prefer short topic names as narrative labels.
-      const shortTopics = matchedTopics.filter(
-        (t) => t.split(/\s+/).length <= 3,
-      );
+      const shortTopics = matchedTopics.filter((t) => t.split(/\s+/).length <= 3);
       const narrative = detectNarrative(candidate, shortTopics);
 
       // Resolve the topic IDs that caused this book to become a witness.
@@ -2454,10 +2482,7 @@ interface NaveSearchEntry {
   relevance: number;
 }
 
-async function searchNaves(
-  topic: string,
-  limit: number,
-): Promise<Map<string, NaveSearchEntry>> {
+async function searchNaves(topic: string, limit: number): Promise<Map<string, NaveSearchEntry>> {
   // Normalize the topic the same way the ETL does: lowercase.
   const normalized = topic.toLowerCase();
 
@@ -2544,13 +2569,21 @@ async function searchNaves(
 async function searchSemanticFromVector(
   queryVector: number[],
   limit: number,
-): Promise<Map<string, { book_id: number; chapter: number; verse: number; translation_id: number; score: number }>> {
+): Promise<
+  Map<
+    string,
+    { book_id: number; chapter: number; verse: number; translation_id: number; score: number }
+  >
+> {
   const topK = Math.min(limit * VECTORIZE_OVERFETCH_MULTIPLIER, 20);
   const matches = await vectorize.query(queryVector, { topK });
   if (matches.length === 0) return new Map();
 
   // Each match metadata contains book_id, chapter, verse, translation_id.
-  const coordMap = new Map<string, { book_id: number; chapter: number; verse: number; translation_id: number; score: number }>();
+  const coordMap = new Map<
+    string,
+    { book_id: number; chapter: number; verse: number; translation_id: number; score: number }
+  >();
 
   for (const match of matches) {
     const meta = match.metadata;
@@ -2567,7 +2600,13 @@ async function searchSemanticFromVector(
     // We'll fetch the actual book name via D1 query below.
     const key = `${bookId}:${chapter}:${verse}`;
     if (!coordMap.has(key)) {
-      coordMap.set(key, { book_id: bookId, chapter, verse, translation_id: translationId, score: match.score });
+      coordMap.set(key, {
+        book_id: bookId,
+        chapter,
+        verse,
+        translation_id: translationId,
+        score: match.score,
+      });
     }
   }
 
@@ -2620,9 +2659,7 @@ async function fetchVerseTexts(
 
   // Issue all chunk queries concurrently.
   const statements = chunks.map(buildVerseChunkStatement);
-  const resultSets = await Promise.all(
-    statements.map((stmt) => d1.query(stmt.sql, stmt.params))
-  );
+  const resultSets = await Promise.all(statements.map((stmt) => d1.query(stmt.sql, stmt.params)));
 
   const verseMap = new Map<string, VerseRow>();
 
@@ -2647,7 +2684,10 @@ function capConsecutiveVerses(
   navesMap: Map<string, NaveSearchEntry>,
 ): Map<string, NaveSearchEntry> {
   // Group entries by book:chapter.
-  const byChapter = new Map<string, Array<{ key: string; verse: number; entry: NaveSearchEntry }>>();
+  const byChapter = new Map<
+    string,
+    Array<{ key: string; verse: number; entry: NaveSearchEntry }>
+  >();
 
   for (const [key, entry] of navesMap) {
     const { book, chapter, verse } = entry.result.citation;
@@ -2706,23 +2746,36 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
   // Graceful degradation: if topic index is not configured, searchSemanticTopicsAndBooks
   // returns empty arrays — fall back to Nave's LIKE for witnesses.
   // Topic + book results share one Vectorize query (saves an HTTP round-trip).
-  const semanticCoordsPromise = queryVector.length > 0
-    ? searchSemanticFromVector(queryVector, limit)
-    : Promise.resolve(new Map<string, { book_id: number; chapter: number; verse: number; translation_id: number; score: number }>());
+  const semanticCoordsPromise =
+    queryVector.length > 0
+      ? searchSemanticFromVector(queryVector, limit)
+      : Promise.resolve(
+          new Map<
+            string,
+            {
+              book_id: number;
+              chapter: number;
+              verse: number;
+              translation_id: number;
+              score: number;
+            }
+          >(),
+        );
 
-  const semanticTopicsAndBooksPromise = queryVector.length > 0
-    ? searchSemanticTopicsAndBooks(queryVector)
-    : Promise.resolve({ topics: [] as Array<{ id: number; name: string; score: number }>, books: [] as Array<{ book_id: number; score: number }> });
+  const semanticTopicsAndBooksPromise =
+    queryVector.length > 0
+      ? searchSemanticTopicsAndBooks(queryVector)
+      : Promise.resolve({
+          topics: [] as Array<{ id: number; name: string; score: number }>,
+          books: [] as Array<{ book_id: number; score: number }>,
+        });
 
   // Run LIKE topic expansion in parallel with Vectorize queries to avoid
   // sequential latency. Both sources are needed for comprehensive coverage.
   const likeTopicsPromise = queryExpandedTopicsByLike(topic);
 
-  const [{ topics: semanticTopics, books: semanticBooks }, semanticCoords, likeTopics] = await Promise.all([
-    semanticTopicsAndBooksPromise,
-    semanticCoordsPromise,
-    likeTopicsPromise,
-  ]);
+  const [{ topics: semanticTopics, books: semanticBooks }, semanticCoords, likeTopics] =
+    await Promise.all([semanticTopicsAndBooksPromise, semanticCoordsPromise, likeTopicsPromise]);
 
   // Detect whether the query names a specific biblical narrative or figure.
   // This is done after LIKE topics resolve so we can use them as a signal.
@@ -2752,9 +2805,7 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
   // concentrated (high salience = canonical for a specific book) vs spread
   // evenly (generic topics that would inflate all books equally).
   const coTopicIds = cooccurringTopics.map((t) => t.id);
-  const coSalienceEntries = coTopicIds.length > 0
-    ? await fetchCooccurringSalience(coTopicIds)
-    : [];
+  const coSalienceEntries = coTopicIds.length > 0 ? await fetchCooccurringSalience(coTopicIds) : [];
 
   // Include co-occurring topics in aggregation ONLY if they are among the
   // top co-occurring topics by shared verse count AND have high salience
@@ -2815,7 +2866,19 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
   const seedTopicIdSet = new Set(seedTopicIds);
   const majorWitnesses =
     finalExpandedTopics.length > 0
-      ? await buildMajorWitnesses(finalExpandedTopics, salienceTopicIds, topicRelevanceWeight, semanticBooks, semanticCoords, semanticVerseMap, topic, narrativeContext ?? undefined, seedTopicIdSet, semanticScoreById, likeTopicIdSet)
+      ? await buildMajorWitnesses(
+          finalExpandedTopics,
+          salienceTopicIds,
+          topicRelevanceWeight,
+          semanticBooks,
+          semanticCoords,
+          semanticVerseMap,
+          topic,
+          narrativeContext ?? undefined,
+          seedTopicIdSet,
+          semanticScoreById,
+          likeTopicIdSet,
+        )
       : [];
 
   // Phase 4: Existing merge + witness interleave + match reasons.
@@ -2848,7 +2911,7 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
       const topicName = existing.result.match_reason?.replace("Nave's Topical Bible: ", '') ?? '';
       existing.result.match_reason = topicName
         ? `Nave's Topical Bible: ${topicName} + Semantic similarity`
-        : 'Nave\'s Topical Bible + Semantic similarity';
+        : "Nave's Topical Bible + Semantic similarity";
     } else {
       const citation: Citation = {
         book: verseRow.book_name,
@@ -2889,7 +2952,8 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
 
   // Split Nave's results into 'both' (matched semantic too) and 'naves'-only.
   const bothEntries: Array<{ unifiedKey: string; result: TopicalResult }> = [];
-  const navesOnlyEntries: Array<{ unifiedKey: string; relevance: number; result: TopicalResult }> = [];
+  const navesOnlyEntries: Array<{ unifiedKey: string; relevance: number; result: TopicalResult }> =
+    [];
 
   for (const [key, entry] of navesResultsCapped) {
     if (entry.result.source === 'both') {
@@ -2928,12 +2992,14 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
   const naveOnlyOverflow = navesOnlyBudget - navesOnlySlice.length;
   const semanticOverflow = semanticBudget - semanticSlice.length;
 
-  const extraSemantic = naveOnlyOverflow > 0
-    ? semanticPool.slice(semanticBudget, semanticBudget + naveOnlyOverflow)
-    : [];
-  const extraNaves = semanticOverflow > 0
-    ? navesOnlyPool.slice(navesOnlyBudget, navesOnlyBudget + semanticOverflow)
-    : [];
+  const extraSemantic =
+    naveOnlyOverflow > 0
+      ? semanticPool.slice(semanticBudget, semanticBudget + naveOnlyOverflow)
+      : [];
+  const extraNaves =
+    semanticOverflow > 0
+      ? navesOnlyPool.slice(navesOnlyBudget, navesOnlyBudget + semanticOverflow)
+      : [];
 
   // Final ordering: 'both' first (by semantic score), then remaining by relevance.
   const mergedResults = [
@@ -2952,16 +3018,13 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
     // We need candidate book_ids for the interleave check — re-use aggregation
     // data already computed. To avoid another D1 round-trip, derive book_ids
     // from semanticCoords and verseMap that we already have in memory.
-    const witnessBookNames = new Set(
-      majorWitnesses.map((w) => w.book.toLowerCase()),
-    );
+    const witnessBookNames = new Set(majorWitnesses.map((w) => w.book.toLowerCase()));
 
     const witnessVerseCount = mergedResults.filter((r) =>
       witnessBookNames.has(r.citation.book.toLowerCase()),
     ).length;
 
-    const witnessRatio =
-      mergedResults.length > 0 ? witnessVerseCount / mergedResults.length : 0;
+    const witnessRatio = mergedResults.length > 0 ? witnessVerseCount / mergedResults.length : 0;
 
     if (witnessRatio < 0.15) {
       // Collect witness-book verse candidates from semantic pool not already in results.
@@ -3022,11 +3085,11 @@ topicalSearch.annotations = {
 
 topicalSearch.description =
   'Research what the Bible teaches about a topic. Best for broad theological questions, especially "What does the Bible say about X?" queries. ' +
-  'Returns both direct verse hits and major_witnesses: the books, narratives, and passages that are the Bible\'s principal treatments of the topic. ' +
-  'Combines Nave\'s curated Topical Bible (5,319 categories) with AI semantic search. ' +
+  "Returns both direct verse hits and major_witnesses: the books, narratives, and passages that are the Bible's principal treatments of the topic. " +
+  "Combines Nave's curated Topical Bible (5,319 categories) with AI semantic search. " +
   'Works for single topics ("forgiveness", "prayer") and compound themes ("God\'s faithfulness during suffering", "hope in the face of death"). ' +
   'Prefer this over semantic_search when the answer should include major biblical witnesses across passages, narratives, books, or genres. ' +
-  'Major witnesses include witness_strength (central/strong/supporting) and query_alignment_note to explain how the book\'s evidence connects to your query. ' +
+  "Major witnesses include witness_strength (central/strong/supporting) and query_alignment_note to explain how the book's evidence connects to your query. " +
   'For story/narrative queries (e.g., "Noah and the ark", "the Exodus", "David and Goliath"): topical_search identifies the primary narrative book and anchor verse range. ' +
   'After getting results, pick a representative verse from the story unit (cross_references takes a single verse, not a range), then use cross_references on that anchor verse to find how other books reference the story, and use semantic_search for verse-level exploration within the story unit. ' +
   'For deeper study: use cross_references to expand a verse found in the results, semantic_search for additional verse-level discovery, find_text for keyword-based follow-up searches, or word_study for original-language analysis of key terms.';
@@ -3036,7 +3099,7 @@ topicalSearch.input = {
     required: true,
     description:
       'The topic to search for. Accepts single topics (e.g., "forgiveness", "prayer") or compound themes (e.g., "God\'s faithfulness during suffering"). ' +
-      'Nave\'s index is searched by keyword match; semantic search finds conceptually related verses.',
+      "Nave's index is searched by keyword match; semantic search finds conceptually related verses.",
     minLength: 1,
   }),
   limit: T.number({

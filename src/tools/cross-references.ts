@@ -41,7 +41,12 @@ const DEFAULT_LIMIT = 20;
 const crossReferences: ToolHandler = async (args, _ask?) => {
   await ensureInitialized();
 
-  const { book: bookInput, chapter, verse, limit: rawLimit } = args as {
+  const {
+    book: bookInput,
+    chapter,
+    verse,
+    limit: rawLimit,
+  } = args as {
     book: string;
     chapter: number;
     verse: number;
@@ -76,7 +81,7 @@ const crossReferences: ToolHandler = async (args, _ask?) => {
       `SELECT text FROM verses
             WHERE book_id = ? AND chapter = ? AND verse = ? AND translation_id = ?
             LIMIT 1`,
-      [book.id, chapter, verse, translation.id]
+      [book.id, chapter, verse, translation.id],
     ),
     d1.query(
       `SELECT
@@ -98,46 +103,44 @@ const crossReferences: ToolHandler = async (args, _ask?) => {
                AND cr.from_verse    = ?
              ORDER BY cr.confidence DESC NULLS LAST, cr.id ASC
              LIMIT ?`,
-      [translation.id, book.id, chapter, verse, limit]
+      [translation.id, book.id, chapter, verse, limit],
     ),
   ]);
 
   if (sourceResult.results.length === 0) {
     throw new Error(
       `Verse not found: ${book.name} ${chapter}:${verse} (${DEFAULT_TRANSLATION}). ` +
-        'The verse may not exist in the database or the reference is out of range.'
+        'The verse may not exist in the database or the reference is out of range.',
     );
   }
 
   const sourceText = sourceResult.results[0]['text'] as string;
   const sourceCitation = makeCitation(book, chapter, verse, DEFAULT_TRANSLATION);
 
-  const crossReferenceEntries: CrossReferenceEntry[] = xrefResult.results.map(
-    (row) => {
-      const toBookName = row['to_book_name'] as string;
-      const toChapter = row['to_chapter'] as number;
-      const toVerse = row['to_verse'] as number;
-      const toText = (row['to_text'] as string | null) ?? '[verse text not available]';
-      const confidence = row['confidence'] as number | null;
+  const crossReferenceEntries: CrossReferenceEntry[] = xrefResult.results.map((row) => {
+    const toBookName = row['to_book_name'] as string;
+    const toChapter = row['to_chapter'] as number;
+    const toVerse = row['to_verse'] as number;
+    const toText = (row['to_text'] as string | null) ?? '[verse text not available]';
+    const confidence = row['confidence'] as number | null;
 
-      // Resolve target book for makeCitation (needs Book object)
-      const toBook = resolveBook(toBookName);
-      const toCitation: Citation = toBook
-        ? makeCitation(toBook, toChapter, toVerse, DEFAULT_TRANSLATION)
-        : {
-            book: toBookName,
-            chapter: toChapter,
-            verse: toVerse,
-            translation: DEFAULT_TRANSLATION,
-          };
+    // Resolve target book for makeCitation (needs Book object)
+    const toBook = resolveBook(toBookName);
+    const toCitation: Citation = toBook
+      ? makeCitation(toBook, toChapter, toVerse, DEFAULT_TRANSLATION)
+      : {
+          book: toBookName,
+          chapter: toChapter,
+          verse: toVerse,
+          translation: DEFAULT_TRANSLATION,
+        };
 
-      return {
-        text: toText,
-        citation: toCitation,
-        confidence,
-      };
-    }
-  );
+    return {
+      text: toText,
+      citation: toCitation,
+      confidence,
+    };
+  });
 
   const response: CrossReferencesResult = {
     source: {

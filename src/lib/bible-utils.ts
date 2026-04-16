@@ -39,9 +39,7 @@ const bookCache = new Map<string, Book>();
 // ─── Translations cache ───────────────────────────────────────────────────────
 
 async function loadTranslations(): Promise<void> {
-  const result = await d1.query(
-    'SELECT id, abbreviation, name, year FROM translations'
-  );
+  const result = await d1.query('SELECT id, abbreviation, name, year FROM translations');
 
   for (const row of result.results) {
     const t: Translation = {
@@ -74,7 +72,7 @@ export function isValidTranslation(abbrev: string): boolean {
 async function loadBooks(): Promise<void> {
   // Load canonical book names first.
   const booksResult = await d1.query(
-    'SELECT id, abbreviation, name, testament, canonical_order FROM books'
+    'SELECT id, abbreviation, name, testament, canonical_order FROM books',
   );
 
   const booksById = new Map<number, Book>();
@@ -94,9 +92,7 @@ async function loadBooks(): Promise<void> {
   }
 
   // Load aliases and index them.
-  const aliasResult = await d1.query(
-    'SELECT alias, book_id FROM book_aliases'
-  );
+  const aliasResult = await d1.query('SELECT alias, book_id FROM book_aliases');
 
   for (const row of aliasResult.results) {
     const bookId = row['book_id'] as number;
@@ -118,7 +114,7 @@ export function makeCitation(
   book: Book,
   chapter: number,
   verse: number,
-  translationAbbrev: string
+  translationAbbrev: string,
 ): Citation {
   return {
     book: book.name,
@@ -131,7 +127,7 @@ export function makeCitation(
 export function validateVerseRef(
   bookName: string,
   chapter: number,
-  verse: number
+  verse: number,
 ): { book: Book } | { error: string } {
   const book = resolveBook(bookName);
 
@@ -153,16 +149,14 @@ export function validateVerseRef(
 // ─── Initialization ───────────────────────────────────────────────────────────
 
 export async function init(): Promise<void> {
-  const apiToken =
-    process.env.BIBLE_API_TOKEN ?? process.env.CLOUDFLARE_API_TOKEN;
-  const accountId =
-    process.env.BIBLE_ACCOUNT_ID ?? process.env.CLOUDFLARE_ACCOUNT_ID;
+  const apiToken = process.env.BIBLE_API_TOKEN ?? process.env.CLOUDFLARE_API_TOKEN;
+  const accountId = process.env.BIBLE_ACCOUNT_ID ?? process.env.CLOUDFLARE_ACCOUNT_ID;
   const databaseId = process.env.D1_DATABASE_ID;
 
   if (!apiToken || !accountId || !databaseId) {
     console.warn(
       '[bible-utils] D1 env vars not set (BIBLE_API_TOKEN or CLOUDFLARE_API_TOKEN, BIBLE_ACCOUNT_ID or CLOUDFLARE_ACCOUNT_ID, D1_DATABASE_ID). ' +
-        'Skipping cache pre-population. Bible lookups will fail at runtime.'
+        'Skipping cache pre-population. Bible lookups will fail at runtime.',
     );
     return;
   }
@@ -170,7 +164,7 @@ export async function init(): Promise<void> {
   await Promise.all([loadTranslations(), loadBooks()]);
 
   console.log(
-    `[bible-utils] Cache ready: ${translationCache.size} translations, ${bookCache.size} book entries`
+    `[bible-utils] Cache ready: ${translationCache.size} translations, ${bookCache.size} book entries`,
   );
 }
 

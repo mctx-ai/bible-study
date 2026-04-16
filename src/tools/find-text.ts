@@ -21,10 +21,47 @@ import type { Citation } from '../lib/bible-utils.js';
 
 /** Common English stop words stripped from multi-word queries. */
 const STOP_WORDS = new Set([
-  'a', 'an', 'the', 'in', 'of', 'for', 'to', 'is', 'it', 'and', 'or',
-  'but', 'with', 'by', 'at', 'on', 'from', 'as', 'be', 'was', 'were',
-  'been', 'are', 'am', 'do', 'does', 'did', 'has', 'have', 'had', 'this',
-  'that', 'these', 'those', 'so', 'if', 'not', 'no', 'up', 'out', 'its',
+  'a',
+  'an',
+  'the',
+  'in',
+  'of',
+  'for',
+  'to',
+  'is',
+  'it',
+  'and',
+  'or',
+  'but',
+  'with',
+  'by',
+  'at',
+  'on',
+  'from',
+  'as',
+  'be',
+  'was',
+  'were',
+  'been',
+  'are',
+  'am',
+  'do',
+  'does',
+  'did',
+  'has',
+  'have',
+  'had',
+  'this',
+  'that',
+  'these',
+  'those',
+  'so',
+  'if',
+  'not',
+  'no',
+  'up',
+  'out',
+  'its',
 ]);
 
 /** Strip FTS5 metacharacters from an individual word. */
@@ -113,18 +150,25 @@ const FIND_TEXT_MAX_LIMIT = 100;
 const findText: ToolHandler = async (args, _ask?) => {
   await ensureInitialized();
 
-  const { query, translation, limit: rawLimit } = args as {
+  const {
+    query,
+    translation,
+    limit: rawLimit,
+  } = args as {
     query: string;
     translation?: string;
     limit?: number;
   };
 
-  const limit = Math.max(1, Math.floor(Math.min(rawLimit ?? FIND_TEXT_DEFAULT_LIMIT, FIND_TEXT_MAX_LIMIT)));
+  const limit = Math.max(
+    1,
+    Math.floor(Math.min(rawLimit ?? FIND_TEXT_DEFAULT_LIMIT, FIND_TEXT_MAX_LIMIT)),
+  );
 
   // Validate translation filter if provided.
   if (translation !== undefined && !isValidTranslation(translation)) {
     throw new Error(
-      `Unknown translation "${translation}". Use the bible://translations resource to list available translations.`
+      `Unknown translation "${translation}". Use the bible://translations resource to list available translations.`,
     );
   }
 

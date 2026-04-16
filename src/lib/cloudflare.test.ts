@@ -143,7 +143,7 @@ describe('d1.query()', () => {
     vi.stubGlobal('fetch', mockFetch);
 
     await expect(d1.query('SELECT 1')).rejects.toThrow(
-      /D1 query returned an unexpected empty result array/
+      /D1 query returned an unexpected empty result array/,
     );
   });
 
@@ -156,9 +156,7 @@ describe('d1.query()', () => {
     });
     vi.stubGlobal('fetch', mockFetch);
 
-    await expect(d1.query('SELECT 1')).rejects.toThrow(
-      /Cloudflare API error: 403 Forbidden/
-    );
+    await expect(d1.query('SELECT 1')).rejects.toThrow(/Cloudflare API error: 403 Forbidden/);
   });
 
   test('multiple concurrent queries via Promise.all return independent results', async () => {
@@ -180,10 +178,7 @@ describe('d1.query()', () => {
     });
     vi.stubGlobal('fetch', mockFetch);
 
-    const [r1, r2] = await Promise.all([
-      d1.query('SELECT 1'),
-      d1.query('SELECT 2'),
-    ]);
+    const [r1, r2] = await Promise.all([d1.query('SELECT 1'), d1.query('SELECT 2')]);
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(r1.results).toEqual([{ id: 1 }]);

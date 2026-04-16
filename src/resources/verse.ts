@@ -111,7 +111,7 @@ const handler: ResourceHandler = async (params) => {
         AND v.verse >= ?
         AND v.verse <= ?
       ORDER BY v.verse`,
-    [translation.id, resolvedBook.id, chapterNum, minVerse, maxVerse]
+    [translation.id, resolvedBook.id, chapterNum, minVerse, maxVerse],
   );
 
   if (queryResult.results.length === 0) {

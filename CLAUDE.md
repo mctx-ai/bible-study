@@ -358,7 +358,7 @@ If any of these are not being synced, the release workflow needs to be updated.
 
 Any change that affects external behavior, user-visible output, or tool capabilities **must** trigger a review of:
 
-1. **`README.md`** — This is the public product page on mctx.ai, not developer docs. Review against mctx's recommended 7-section structure (Opening Hook, Differentiation, What You Get, How It Works, Using This App, Example Phrases, Real-World Workflows). See [mctx docs on writing a good README](https://docs.mctx.ai/building-mcp-servers/server-requirements#writing-a-good-readme).
+1. **`README.md`** — This is the public product page on mctx.ai, not developer docs. Review against mctx's recommended 7-section structure (Opening Hook, Differentiation, What You Get, How It Works, Using This Server, Example Phrases, Real-World Workflows). See [mctx docs on writing a good README](https://docs.mctx.ai/building-mcp-servers/server-requirements#writing-a-good-readme).
 
 2. **`package.json` `description` field** — First 100 characters are the hook shown in registry listings. Must reflect current capabilities. See [mctx docs on description](https://docs.mctx.ai/configuration/mctx-json#description).
 

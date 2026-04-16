@@ -509,7 +509,7 @@ async function acquireWEB(): Promise<boolean> {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  console.log('Bible Study App — Data Acquisition');
+  console.log('Bible Study MCP Server — Data Acquisition');
   console.log('====================================\n');
 
   fs.mkdirSync(DATA_DIR, { recursive: true });
