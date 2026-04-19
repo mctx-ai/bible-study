@@ -220,7 +220,7 @@ async function loadLexiconEntries(entries: LexiconEntry[]): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  console.log('Bible Study App — Strong\'s ETL');
+  console.log('Bible Study MCP Server — Strong\'s ETL');
   console.log('=================================\n');
 
   // Validate required environment variables

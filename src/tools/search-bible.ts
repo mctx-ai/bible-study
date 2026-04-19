@@ -5,8 +5,8 @@
 // verse locations and returns all translations for each location from D1.
 // When a translation filter is set, the limit applies directly to results.
 
-import { T } from '@mctx-ai/app';
-import type { ToolHandler } from '@mctx-ai/app';
+import { T } from '@mctx-ai/mcp';
+import type { ToolHandler, ModelContext, Response as MctxResponse } from '@mctx-ai/mcp';
 import { vectorize, workersAi, d1 } from '../lib/cloudflare.js';
 import {
   resolveBook,
@@ -71,7 +71,7 @@ const LOCATION_CHUNK_SIZE = 30;
 
 function buildVectorizeFilter(
   bookId: number | undefined,
-  testament: string | undefined
+  testament: string | undefined,
 ): Record<string, string | number> | undefined {
   const filter: Record<string, string | number> = {};
 
@@ -125,7 +125,7 @@ interface D1VerseRow {
 
 async function fetchVersesByTranslation(
   locations: Array<{ book_id: number; chapter: number; verse: number }>,
-  translationId: number
+  translationId: number,
 ): Promise<D1VerseRow[]> {
   if (locations.length === 0) return [];
 
@@ -146,11 +146,7 @@ async function fetchVersesByTranslation(
         .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ?)')
         .join(' OR ');
 
-      const params: unknown[] = chunk.flatMap((loc) => [
-        loc.book_id,
-        loc.chapter,
-        loc.verse,
-      ]);
+      const params: unknown[] = chunk.flatMap((loc) => [loc.book_id, loc.chapter, loc.verse]);
       params.push(translationId);
 
       const sql = `
@@ -183,14 +179,14 @@ async function fetchVersesByTranslation(
       }));
 
       allRows.push(...rows);
-    })
+    }),
   );
 
   return allRows;
 }
 
 async function fetchVersesByLocations(
-  locations: Array<{ book_id: number; chapter: number; verse: number }>
+  locations: Array<{ book_id: number; chapter: number; verse: number }>,
 ): Promise<D1VerseRow[]> {
   if (locations.length === 0) return [];
 
@@ -209,11 +205,7 @@ async function fetchVersesByLocations(
         .map(() => '(v.book_id = ? AND v.chapter = ? AND v.verse = ?)')
         .join(' OR ');
 
-      const params: unknown[] = chunk.flatMap((loc) => [
-        loc.book_id,
-        loc.chapter,
-        loc.verse,
-      ]);
+      const params: unknown[] = chunk.flatMap((loc) => [loc.book_id, loc.chapter, loc.verse]);
 
       const sql = `
         SELECT
@@ -244,7 +236,7 @@ async function fetchVersesByLocations(
       }));
 
       allRows.push(...rows);
-    })
+    }),
   );
 
   return allRows;
@@ -252,7 +244,7 @@ async function fetchVersesByLocations(
 
 // ─── Tool implementation ──────────────────────────────────────────────────────
 
-const searchBible: ToolHandler = async (args, _ask?) => {
+const searchBible: ToolHandler = async (_mctx: ModelContext, req, res: MctxResponse) => {
   await ensureInitialized();
 
   const {
@@ -261,7 +253,7 @@ const searchBible: ToolHandler = async (args, _ask?) => {
     translation: translationArg,
     book: bookArg,
     testament: testamentArg,
-  } = args as {
+  } = req as {
     query: string;
     limit?: number;
     translation?: string;
@@ -270,10 +262,7 @@ const searchBible: ToolHandler = async (args, _ask?) => {
   };
 
   // Validate and clamp limit.
-  const limit = Math.min(
-    Math.max(1, Math.floor(limitRaw ?? DEFAULT_LIMIT)),
-    MAX_LIMIT
-  );
+  const limit = Math.min(Math.max(1, Math.floor(limitRaw ?? DEFAULT_LIMIT)), MAX_LIMIT);
 
   // Resolve optional book filter.
   let bookFilter: Book | undefined;
@@ -326,8 +315,8 @@ const searchBible: ToolHandler = async (args, _ask?) => {
   const matches = await vectorize.query(queryVector, { topK, filter });
 
   if (!matches || matches.length === 0) {
-    const result: SearchResult = { query, results: [], total: 0 };
-    return result;
+    res.send({ query, results: [], total: 0 } satisfies SearchResult);
+    return;
   }
 
   if (translationId) {
@@ -336,7 +325,7 @@ const searchBible: ToolHandler = async (args, _ask?) => {
     // translation. This is more reliable than Vectorize metadata filtering, which can
     // silently drop candidates during ANN retrieval.
     const translationMatches = matches.filter(
-      (match) => match.metadata?.['translation_id'] === translationId
+      (match) => match.metadata?.['translation_id'] === translationId,
     );
 
     // Collect valid locations from the filtered vector matches.
@@ -360,8 +349,8 @@ const searchBible: ToolHandler = async (args, _ask?) => {
     }
 
     if (locations.length === 0) {
-      const result: SearchResult = { query, results: [], total: 0 };
-      return result;
+      res.send({ query, results: [], total: 0 } satisfies SearchResult);
+      return;
     }
 
     // Build a score map keyed by location for later annotation.
@@ -374,27 +363,17 @@ const searchBible: ToolHandler = async (args, _ask?) => {
     const rows = await fetchVersesByTranslation(locations, translationId);
 
     const results: VerseResult[] = rows.map((row) => {
-      const score =
-        scoreByLocation.get(`${row.book_id}:${row.chapter}:${row.verse}`) ?? 0;
+      const score = scoreByLocation.get(`${row.book_id}:${row.chapter}:${row.verse}`) ?? 0;
       const book = resolveBook(row.book_name) ?? ({ id: row.book_id, name: row.book_name } as Book);
-      const citation: Citation = makeCitation(
-        book,
-        row.chapter,
-        row.verse,
-        row.translation_abbrev
-      );
+      const citation: Citation = makeCitation(book, row.chapter, row.verse, row.translation_abbrev);
       return { citation, text: row.text, score };
     });
 
     // Sort by descending score (D1 returns in canonical order).
     results.sort((a, b) => b.score - a.score);
 
-    const output: SearchResult = {
-      query,
-      results,
-      total: results.length,
-    };
-    return output;
+    res.send({ query, results, total: results.length } satisfies SearchResult);
+    return;
   }
 
   // No translation filter path: deduplicate to unique verse locations,
@@ -428,8 +407,8 @@ const searchBible: ToolHandler = async (args, _ask?) => {
   }
 
   if (uniqueLocations.length === 0) {
-    const result: SearchResult = { query, results: [], total: 0 };
-    return result;
+    res.send({ query, results: [], total: 0 } satisfies SearchResult);
+    return;
   }
 
   // Fetch all translations for the unique locations.
@@ -470,12 +449,7 @@ const searchBible: ToolHandler = async (args, _ask?) => {
     .map((loc) => groupMap.get(`${loc.book_id}:${loc.chapter}:${loc.verse}`))
     .filter((g): g is GroupedVerseResult => g !== undefined);
 
-  const output: GroupedSearchResult = {
-    query,
-    results,
-    total: results.length,
-  };
-  return output;
+  res.send({ query, results, total: results.length } satisfies GroupedSearchResult);
 };
 
 searchBible.annotations = {

@@ -401,7 +401,7 @@ async function checkDataIntegrity(): Promise<void> {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  console.log('Bible Study App — Data Validation');
+  console.log('Bible Study MCP Server — Data Validation');
   console.log('===================================');
 
   try {

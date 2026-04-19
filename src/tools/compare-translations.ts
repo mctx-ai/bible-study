@@ -3,8 +3,8 @@
 // Returns the same passage from all 5 translations side-by-side.
 // Each verse is fully cited with a structured Citation object.
 
-import type { ToolHandler } from '@mctx-ai/app';
-import { T } from '@mctx-ai/app';
+import type { ToolHandler, ModelContext, Response as MctxResponse } from '@mctx-ai/mcp';
+import { T } from '@mctx-ai/mcp';
 import { d1 } from '../lib/cloudflare.js';
 import {
   resolveBook,
@@ -36,10 +36,15 @@ interface CompareTranslationsResult {
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
-const compareTranslations: ToolHandler = async (args, _ask?) => {
+const compareTranslations: ToolHandler = async (_mctx: ModelContext, req, res: MctxResponse) => {
   await ensureInitialized();
 
-  const { book: bookInput, chapter, verse_start, verse_end } = args as {
+  const {
+    book: bookInput,
+    chapter,
+    verse_start,
+    verse_end,
+  } = req as {
     book: string;
     chapter: number;
     verse_start: number;
@@ -62,9 +67,7 @@ const compareTranslations: ToolHandler = async (args, _ask?) => {
     throw new Error(`verse_start must be a positive integer; got ${verse_start}`);
   }
   if (!Number.isInteger(resolvedVerseEnd) || resolvedVerseEnd < verse_start) {
-    throw new Error(
-      `verse_end must be >= verse_start (${verse_start}); got ${resolvedVerseEnd}`
-    );
+    throw new Error(`verse_end must be >= verse_start (${verse_start}); got ${resolvedVerseEnd}`);
   }
 
   const translations = getAllTranslations();
@@ -83,7 +86,7 @@ const compareTranslations: ToolHandler = async (args, _ask?) => {
        AND v.verse >= ?
        AND v.verse <= ?
      ORDER BY v.verse ASC, t.abbreviation ASC`,
-    [book.id, chapter, verse_start, resolvedVerseEnd]
+    [book.id, chapter, verse_start, resolvedVerseEnd],
   );
 
   // Group rows by verse number
@@ -119,7 +122,7 @@ const compareTranslations: ToolHandler = async (args, _ask?) => {
     verses,
   };
 
-  return response;
+  res.send(response);
 };
 
 compareTranslations.annotations = {
@@ -131,7 +134,7 @@ compareTranslations.annotations = {
 
 compareTranslations.description =
   'Show a known Bible passage side-by-side across all 5 translations (KJV, WEB, ASV, YLT, DBY). Use when the relevant verse or passage has already been identified and the goal is to compare wording, nuance, or translation choices across renderings. ' +
-  'This helps interpret a passage; it does not discover the Bible\'s major teaching on a topic.';
+  "This helps interpret a passage; it does not discover the Bible's major teaching on a topic.";
 
 compareTranslations.input = {
   book: T.string({

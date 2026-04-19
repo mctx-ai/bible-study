@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/setup-infra.sh
 #
-# Sets up Cloudflare infrastructure for the Bible Study App.
+# Sets up Cloudflare infrastructure for the Bible Study MCP Server.
 # Creates a D1 database and a Vectorize index if they don't already exist.
 #
 # Prerequisites:
@@ -63,7 +63,7 @@ else
   WRANGLER="npx wrangler"
 fi
 
-echo "==> Cloudflare infrastructure setup for Bible Study App"
+echo "==> Cloudflare infrastructure setup for Bible Study MCP Server"
 echo ""
 
 # ---------------------------------------------------------------------------

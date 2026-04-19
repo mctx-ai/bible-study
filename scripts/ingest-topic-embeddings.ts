@@ -519,7 +519,7 @@ async function ingestRecordsResume(records: TextRecord[], label: string): Promis
 async function main(): Promise<void> {
   const isResume = process.argv.includes('--resume');
 
-  console.log('Bible Study App — Topic Embedding Ingestion');
+  console.log('Bible Study MCP Server — Topic Embedding Ingestion');
   console.log(`Mode: ${isResume ? 'resume' : 'full re-index'}`);
   console.log('============================================\n');
 

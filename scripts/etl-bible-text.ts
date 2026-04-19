@@ -634,7 +634,7 @@ async function loadVerses(
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  console.log('Bible Study App — Bible Text ETL');
+  console.log('Bible Study MCP Server — Bible Text ETL');
   console.log('==================================\n');
 
   // Validate required environment variables

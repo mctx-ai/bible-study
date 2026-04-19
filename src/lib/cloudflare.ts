@@ -20,16 +20,12 @@ let _config: {
 export function getConfig() {
   if (!_config) {
     _config = {
-      apiToken:
-        process.env.BIBLE_API_TOKEN ?? process.env.CLOUDFLARE_API_TOKEN ?? '',
-      accountId:
-        process.env.BIBLE_ACCOUNT_ID ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? '',
+      apiToken: process.env.BIBLE_API_TOKEN ?? process.env.CLOUDFLARE_API_TOKEN ?? '',
+      accountId: process.env.BIBLE_ACCOUNT_ID ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? '',
       databaseId: process.env.D1_DATABASE_ID ?? '',
       indexName: process.env.VECTORIZE_INDEX_NAME ?? '',
       topicIndexName:
-        process.env.BIBLE_TOPIC_INDEX_NAME ??
-        process.env.VECTORIZE_TOPIC_INDEX_NAME ??
-        '',
+        process.env.BIBLE_TOPIC_INDEX_NAME ?? process.env.VECTORIZE_TOPIC_INDEX_NAME ?? '',
     };
   }
   return _config;
@@ -109,10 +105,7 @@ async function cfFetch<T>(url: string, init: RequestInit): Promise<T> {
 
 // ─── D1 client ────────────────────────────────────────────────────────────────
 
-async function d1Query(
-  sql: string,
-  params: unknown[] = []
-): Promise<D1Result> {
+async function d1Query(sql: string, params: unknown[] = []): Promise<D1Result> {
   const { accountId, databaseId } = getConfig();
   const d1Base = `${BASE}/accounts/${accountId}/d1/database/${databaseId}`;
   const result = await cfFetch<D1ResultSet[]>(`${d1Base}/query`, {
@@ -136,7 +129,7 @@ export const d1 = {
 
 async function vectorizeQuery(
   vector: number[],
-  options?: { topK?: number; filter?: Record<string, string | number> }
+  options?: { topK?: number; filter?: Record<string, string | number> },
 ): Promise<VectorizeMatch[]> {
   const { accountId, indexName } = getConfig();
   const vectorizeBase = `${BASE}/accounts/${accountId}/vectorize/v2/indexes/${indexName}`;
@@ -144,10 +137,10 @@ async function vectorizeQuery(
   if (options?.topK !== undefined) body['top_k'] = Math.min(options.topK, 20);
   if (options?.filter !== undefined) body['filter'] = options.filter;
 
-  const result = await cfFetch<{ matches: VectorizeMatch[] }>(
-    `${vectorizeBase}/query`,
-    { method: 'POST', body: JSON.stringify(body) }
-  );
+  const result = await cfFetch<{ matches: VectorizeMatch[] }>(`${vectorizeBase}/query`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 
   return result.matches;
 }
@@ -157,13 +150,11 @@ async function vectorizeUpsert(
     id: string;
     values: number[];
     metadata?: Record<string, unknown>;
-  }>
+  }>,
 ): Promise<void> {
   if (vectors.length === 0) return;
   if (vectors.length > 1000) {
-    throw new Error(
-      `Vectorize upsert accepts at most 1000 vectors; received ${vectors.length}`
-    );
+    throw new Error(`Vectorize upsert accepts at most 1000 vectors; received ${vectors.length}`);
   }
 
   const { accountId, indexName } = getConfig();
@@ -197,7 +188,7 @@ export const vectorize = {
 
 async function vectorizeTopicsQuery(
   vector: number[],
-  options?: { topK?: number; filter?: Record<string, string | number> }
+  options?: { topK?: number; filter?: Record<string, string | number> },
 ): Promise<VectorizeMatch[]> {
   const { accountId, topicIndexName } = getConfig();
   if (!topicIndexName) return [];
@@ -207,10 +198,10 @@ async function vectorizeTopicsQuery(
   if (options?.topK !== undefined) body['top_k'] = Math.min(options.topK, 20);
   if (options?.filter !== undefined) body['filter'] = options.filter;
 
-  const result = await cfFetch<{ matches: VectorizeMatch[] }>(
-    `${vectorizeBase}/query`,
-    { method: 'POST', body: JSON.stringify(body) }
-  );
+  const result = await cfFetch<{ matches: VectorizeMatch[] }>(`${vectorizeBase}/query`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 
   return result.matches;
 }
@@ -225,12 +216,12 @@ const DEFAULT_EMBED_MODEL = '@cf/baai/bge-base-en-v1.5';
 
 async function workersAiEmbed(
   texts: string[],
-  model: string = DEFAULT_EMBED_MODEL
+  model: string = DEFAULT_EMBED_MODEL,
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
   if (texts.length > 100) {
     throw new Error(
-      `Workers AI embed accepts at most 100 texts per request; received ${texts.length}`
+      `Workers AI embed accepts at most 100 texts per request; received ${texts.length}`,
     );
   }
 
@@ -240,7 +231,7 @@ async function workersAiEmbed(
     {
       method: 'POST',
       body: JSON.stringify({ text: texts }),
-    }
+    },
   );
 
   return result.data;

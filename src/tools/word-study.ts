@@ -17,8 +17,8 @@
 //   7. Query morphology for other verses with the same strongs_number (LIMIT 20).
 //   8. Count total occurrences (distinct verses with that strongs_number).
 
-import type { ToolHandler } from '@mctx-ai/app';
-import { T } from '@mctx-ai/app';
+import type { ToolHandler, ModelContext, Response as MctxResponse } from '@mctx-ai/mcp';
+import { T } from '@mctx-ai/mcp';
 import { d1 } from '../lib/cloudflare.js';
 import {
   getTranslation,
@@ -71,10 +71,10 @@ interface WordStudyResult {
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
-const wordStudy: ToolHandler = async (args, _ask?) => {
+const wordStudy: ToolHandler = async (_mctx: ModelContext, req, res: MctxResponse) => {
   await ensureInitialized();
 
-  const { book, chapter, verse, word, translation } = args as {
+  const { book, chapter, verse, word, translation } = req as {
     book: string;
     chapter: number;
     verse: number;
@@ -86,7 +86,7 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
   // silently falling back to KJV (matches behavior of find-text and concordance).
   if (translation !== undefined && !isValidTranslation(translation)) {
     throw new Error(
-      `Unknown translation "${translation}". Use the bible://translations resource to list available translations.`
+      `Unknown translation "${translation}". Use the bible://translations resource to list available translations.`,
     );
   }
 
@@ -135,13 +135,13 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
      LEFT JOIN lexicon_entries le ON le.strongs_number = m.strongs_number
      WHERE m.book_id = ? AND m.chapter = ? AND m.verse = ?
      ORDER BY m.word_position`,
-    [resolvedBook.id, chapter, verse]
+    [resolvedBook.id, chapter, verse],
   );
 
   if (morphResult.results.length === 0) {
     throw new Error(
       `No morphology data found for ${resolvedBook.name} ${chapter}:${verse}. ` +
-        'Original language data may not be available for this verse.'
+        'Original language data may not be available for this verse.',
     );
   }
 
@@ -175,7 +175,7 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
   if (!matchedRow) {
     throw new Error(
       `Word "${word}" not found in ${resolvedBook.name} ${chapter}:${verse}. ` +
-        `Try a word position (e.g. "1", "2", "3") or an English word that appears in the verse.`
+        `Try a word position (e.g. "1", "2", "3") or an English word that appears in the verse.`,
     );
   }
 
@@ -189,7 +189,8 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
           lemma: (row['lemma'] as string) ?? '',
           strongs_number: (row['strongs_number'] as string) ?? '',
           transliteration: (row['transliteration'] as string) ?? '',
-          short_definition: (row['lexicon_short_def'] as string) ?? (row['strongs_definition'] as string) ?? '',
+          short_definition:
+            (row['lexicon_short_def'] as string) ?? (row['strongs_definition'] as string) ?? '',
         }))
       : [];
 
@@ -208,7 +209,7 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
       (row) =>
         row['word_position'] !== position &&
         typeof row['strongs_number'] === 'string' &&
-        (row['strongs_number'] as string).length > 0
+        (row['strongs_number'] as string).length > 0,
     );
 
     const note =
@@ -240,32 +241,32 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
       note,
     };
 
-    return partialResult;
+    res.send(partialResult);
+    return;
   }
 
   // 5–8. Issue all remaining queries concurrently.
-  const [strongsResult, lexiconResult, otherVersesMorphResult, countResult] =
-    await Promise.all([
-      // 5. Strong's entry.
-      d1.query(
-        `SELECT original_word, transliteration, definition, language
+  const [strongsResult, lexiconResult, otherVersesMorphResult, countResult] = await Promise.all([
+    // 5. Strong's entry.
+    d1.query(
+      `SELECT original_word, transliteration, definition, language
               FROM strongs
               WHERE prefixed_number = ?`,
-        [strongsNumber]
-      ),
-      // 6. Lexicon entry (BDB for Hebrew, Thayer for Greek).
-      d1.query(
-        `SELECT short_def, long_def
+      [strongsNumber],
+    ),
+    // 6. Lexicon entry (BDB for Hebrew, Thayer for Greek).
+    d1.query(
+      `SELECT short_def, long_def
               FROM lexicon_entries
               WHERE strongs_number = ?
               LIMIT 1`,
-        [strongsNumber]
-      ),
-      // 7. Other verses with the same strongs_number (up to 20, canonical order).
-      //    JOIN verses and books inline to return verse text and book name
-      //    in a single round-trip.
-      d1.query(
-        `SELECT DISTINCT m.book_id, m.chapter, m.verse,
+      [strongsNumber],
+    ),
+    // 7. Other verses with the same strongs_number (up to 20, canonical order).
+    //    JOIN verses and books inline to return verse text and book name
+    //    in a single round-trip.
+    d1.query(
+      `SELECT DISTINCT m.book_id, m.chapter, m.verse,
                      v.text AS verse_text,
                      b.name AS book_name
               FROM morphology m
@@ -278,26 +279,26 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
                 AND NOT (m.book_id = ? AND m.chapter = ? AND m.verse = ?)
               ORDER BY m.book_id, m.chapter, m.verse
               LIMIT 20`,
-        [verseTranslationId, strongsNumber, resolvedBook.id, chapter, verse]
-      ),
-      // 8. Total occurrence count (distinct verses).
-      //    String concatenation with '.' as separator is safe here because
-      //    book_id, chapter, and verse are all integers, so a '.' never
-      //    appears in any component value — making each composite key
-      //    unambiguous (e.g. "1.2.3" can only mean book 1, chapter 2, verse 3).
-      d1.query(
-        `SELECT COUNT(DISTINCT (book_id || '.' || chapter || '.' || verse)) AS total
+      [verseTranslationId, strongsNumber, resolvedBook.id, chapter, verse],
+    ),
+    // 8. Total occurrence count (distinct verses).
+    //    String concatenation with '.' as separator is safe here because
+    //    book_id, chapter, and verse are all integers, so a '.' never
+    //    appears in any component value — making each composite key
+    //    unambiguous (e.g. "1.2.3" can only mean book 1, chapter 2, verse 3).
+    d1.query(
+      `SELECT COUNT(DISTINCT (book_id || '.' || chapter || '.' || verse)) AS total
               FROM morphology
               WHERE strongs_number = ?`,
-        [strongsNumber]
-      ),
-    ]);
+      [strongsNumber],
+    ),
+  ]);
 
   // 5. Parse Strong's entry.
   const strongsRow = strongsResult.results[0];
   if (!strongsRow) {
     throw new Error(
-      `Strong's entry not found for number ${strongsNumber}. The database may be incomplete.`
+      `Strong's entry not found for number ${strongsNumber}. The database may be incomplete.`,
     );
   }
 
@@ -310,7 +311,7 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
   // Build other occurrences directly from the inline JOIN result — no extra round-trip needed.
   const otherOccurrences = buildOtherOccurrencesInline(
     otherVersesMorphResult.results,
-    verseTranslationAbbrev
+    verseTranslationAbbrev,
   );
 
   // Build source citation — use the first translation_id found for this verse.
@@ -318,7 +319,7 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
     resolvedBook,
     chapter,
     verse,
-    'ORIG' // Morphology is translation-independent; use canonical marker.
+    'ORIG', // Morphology is translation-independent; use canonical marker.
   );
 
   const disambiguationNote =
@@ -347,7 +348,7 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
     ...(disambiguationNote && { note: disambiguationNote }),
   };
 
-  return result;
+  res.send(result);
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -366,20 +367,20 @@ function normalizePos(p: string): string {
 
 function matchByPosition(
   wordParam: string,
-  morphRows: Record<string, unknown>[]
+  morphRows: Record<string, unknown>[],
 ): Record<string, unknown> | undefined {
   const normalizedParam = normalizePos(wordParam);
 
   // Exact match first (handles '1a', '2b', or plain '1' when only one row).
   const exact = morphRows.find(
-    (row) => normalizePos(String(row['word_position'])) === normalizedParam
+    (row) => normalizePos(String(row['word_position'])) === normalizedParam,
   );
   if (exact) return exact;
 
   // If plain integer, also match compound sub-parts (e.g. '1' → '1a', '1b').
   if (/^\d+$/.test(wordParam)) {
     return morphRows.find((row) =>
-      normalizePos(String(row['word_position'])).startsWith(normalizedParam)
+      normalizePos(String(row['word_position'])).startsWith(normalizedParam),
     );
   }
 
@@ -477,13 +478,15 @@ function generateSuffixCandidates(word: string): string[] {
  */
 function matchByEnglishGloss(
   wordParam: string,
-  morphRows: Record<string, unknown>[]
+  morphRows: Record<string, unknown>[],
 ): { first: Record<string, unknown> | undefined; count: number; all: Record<string, unknown>[] } {
   // Inner function: run all matching passes for a given target string.
   // Returns the match result, or { first: undefined, count: 0, all: [] } on no match.
-  function tryMatch(
-    target: string
-  ): { first: Record<string, unknown> | undefined; count: number; all: Record<string, unknown>[] } {
+  function tryMatch(target: string): {
+    first: Record<string, unknown> | undefined;
+    count: number;
+    all: Record<string, unknown>[];
+  } {
     // Build a word-boundary regex so 'sin' doesn't match 'since'.
     const wordBoundaryRe = new RegExp(`\\b${escapeRegex(target)}\\b`, 'i');
 
@@ -532,7 +535,11 @@ function matchByEnglishGloss(
         });
       });
       if (substringMatches.length > 0) {
-        return { first: substringMatches[0], count: substringMatches.length, all: substringMatches };
+        return {
+          first: substringMatches[0],
+          count: substringMatches.length,
+          all: substringMatches,
+        };
       }
     }
 
@@ -571,7 +578,7 @@ function escapeRegex(s: string): string {
  */
 function buildOtherOccurrencesInline(
   rows: Record<string, unknown>[],
-  translationAbbrev: string
+  translationAbbrev: string,
 ): OtherOccurrence[] {
   if (rows.length === 0) return [];
 
@@ -645,7 +652,7 @@ wordStudy.input = {
     description:
       'The word to study. Accepts either: ' +
       '(1) a word position string (e.g. "1", "2", "3", "1a", "1b") corresponding ' +
-      'to the word\'s position in the original language text, or ' +
+      "to the word's position in the original language text, or " +
       '(2) an English surface form (e.g. "love", "grace") that will be matched ' +
       'against the verse text to determine its position.',
     minLength: 1,

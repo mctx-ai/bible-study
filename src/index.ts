@@ -1,14 +1,14 @@
 /**
- * Bible Study App
+ * Bible Study MCP Server
  *
- * Built with @mctx-ai/app. Provides Bible text lookup, semantic search,
+ * Built with @mctx-ai/mcp. Provides Bible text lookup, semantic search,
  * cross-references, word study, concordance, and topical discovery across 5
  * public domain translations (KJV, WEB, ASV, YLT, Darby).
  *
  * Version 1.6.4
  */
 
-import { createServer } from '@mctx-ai/app';
+import { createServer } from '@mctx-ai/mcp';
 
 // ─── Lib ──────────────────────────────────────────────────────────────────────
 //

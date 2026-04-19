@@ -49,7 +49,8 @@ function createRequest(method: string, params: Record<string, unknown> = {}) {
 }
 
 // Helper to parse JSON-RPC response
-async function getResponse(response: Response) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getResponse(response: any): Promise<any> {
   const data = await response.json();
   return data;
 }
@@ -397,332 +398,253 @@ describe('Tool: topical_search', () => {
     }
   });
 
-  test(
-    'handles multi-word thematic queries without crashing',
-    async () => {
-      const queries = [
-        "God's faithfulness during suffering",
-        'innocent suffering',
-        'lament and trust in God',
-        'God working through long periods of suffering',
-      ];
+  test('handles multi-word thematic queries without crashing', async () => {
+    const queries = [
+      "God's faithfulness during suffering",
+      'innocent suffering',
+      'lament and trust in God',
+      'God working through long periods of suffering',
+    ];
 
-      for (const topic of queries) {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    for (const topic of queries) {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result).toBeDefined();
-        expect(Array.isArray(data.result.content)).toBe(true);
-      }
-    },
-    // Each query makes multiple HTTP round-trips (embedding + D1 + Vectorize),
-    // so 4 sequential queries need more than the default 5 s timeout.
-    30_000,
-  );
+      expect(data.result).toBeDefined();
+      expect(Array.isArray(data.result.content)).toBe(true);
+    }
+  }, 30_000); // so 4 sequential queries need more than the default 5 s timeout. // Each query makes multiple HTTP round-trips (embedding + D1 + Vectorize),
 });
 
 describe.skipIf(!process.env.CLOUDFLARE_ACCOUNT_ID)(
   'Tool: topical_search — thematic correctness',
   () => {
-    test(
-      '"suffering" returns Job as a major witness',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'suffering' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"suffering" returns Job as a major witness', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'suffering' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
-        );
-        // Job is the canonical biblical book on suffering — it must appear.
-        expect(witnessBooks).toContain('Job');
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      // Job is the canonical biblical book on suffering — it must appear.
+      expect(witnessBooks).toContain('Job');
+    }, 15_000);
 
-    test(
-      '"innocent suffering" returns Job as a major witness',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'innocent suffering' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"innocent suffering" returns Job as a major witness', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'innocent suffering' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
-        );
-        // Job is the paradigmatic book for innocent suffering — it must appear as a witness.
-        expect(witnessBooks).toContain('Job');
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      // Job is the paradigmatic book for innocent suffering — it must appear as a witness.
+      expect(witnessBooks).toContain('Job');
+    }, 15_000);
 
-    test(
-      '"lament and trust in God" surfaces Psalms',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'lament and trust in God' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"lament and trust in God" surfaces Psalms', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'lament and trust in God' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
-        );
-        expect(witnessBooks).toContain('Psalms');
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      expect(witnessBooks).toContain('Psalms');
+    }, 15_000);
 
-    test(
-      'major witnesses include representative verse with text',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'faith' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('major witnesses include representative verse with text', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'faith' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
 
-        for (const witness of parsed.major_witnesses) {
-          expect(witness.representative_verse).toBeDefined();
-          expect(typeof witness.representative_verse.text).toBe('string');
-          expect(witness.representative_verse.text.length).toBeGreaterThan(0);
-          // citation is an object with book, chapter, verse, translation.
-          expect(witness.representative_verse.citation).toBeDefined();
-          expect(typeof witness.representative_verse.citation.book).toBe(
-            'string',
-          );
-        }
-      },
-      15_000,
-    );
+      for (const witness of parsed.major_witnesses) {
+        expect(witness.representative_verse).toBeDefined();
+        expect(typeof witness.representative_verse.text).toBe('string');
+        expect(witness.representative_verse.text.length).toBeGreaterThan(0);
+        // citation is an object with book, chapter, verse, translation.
+        expect(witness.representative_verse.citation).toBeDefined();
+        expect(typeof witness.representative_verse.citation.book).toBe('string');
+      }
+    }, 15_000);
 
-    test(
-      'verse results include at least one from a major witness book',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'suffering' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('verse results include at least one from a major witness book', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'suffering' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
 
-        const witnessBooks = new Set<string>(
-          parsed.major_witnesses.map((w: { book: string }) => w.book),
-        );
-        const resultBooks = parsed.results.map(
-          (r: { citation: { book: string } }) => r.citation.book,
-        );
-        const hasOverlap = resultBooks.some((book: string) =>
-          witnessBooks.has(book),
-        );
-        expect(hasOverlap).toBe(true);
-      },
-      15_000,
-    );
+      const witnessBooks = new Set<string>(
+        parsed.major_witnesses.map((w: { book: string }) => w.book),
+      );
+      const resultBooks = parsed.results.map(
+        (r: { citation: { book: string } }) => r.citation.book,
+      );
+      const hasOverlap = resultBooks.some((book: string) => witnessBooks.has(book));
+      expect(hasOverlap).toBe(true);
+    }, 15_000);
 
-    test(
-      'results include match_reason explanations',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'faith' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('results include match_reason explanations', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'faith' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.results.length).toBeGreaterThan(0);
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.results.length).toBeGreaterThan(0);
 
-        const hasMatchReason = parsed.results.some(
-          (r: { match_reason?: string }) =>
-            typeof r.match_reason === 'string' && r.match_reason.length > 0,
-        );
-        expect(hasMatchReason).toBe(true);
-      },
-      15_000,
-    );
+      const hasMatchReason = parsed.results.some(
+        (r: { match_reason?: string }) =>
+          typeof r.match_reason === 'string' && r.match_reason.length > 0,
+      );
+      expect(hasMatchReason).toBe(true);
+    }, 15_000);
 
-    test(
-      'major witnesses include match_reason',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'suffering' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('major witnesses include match_reason', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'suffering' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
 
-        for (const witness of parsed.major_witnesses) {
-          expect(typeof witness.match_reason).toBe('string');
-          expect(witness.match_reason.length).toBeGreaterThan(0);
-        }
-      },
-      15_000,
-    );
+      for (const witness of parsed.major_witnesses) {
+        expect(typeof witness.match_reason).toBe('string');
+        expect(witness.match_reason.length).toBeGreaterThan(0);
+      }
+    }, 15_000);
 
-    test(
-      '"leadership" surfaces relevant results',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'leadership' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"leadership" surfaces relevant results', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'leadership' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        // Leadership may not meet the major witness threshold (min 5 verses
-        // across 2+ chapters), but should return verse results.
-        expect(parsed.results.length).toBeGreaterThan(0);
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      // Leadership may not meet the major witness threshold (min 5 verses
+      // across 2+ chapters), but should return verse results.
+      expect(parsed.results.length).toBeGreaterThan(0);
+    }, 15_000);
 
-    test(
-      '"redemption" matches REDEEM-related topics',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'redemption' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"redemption" matches REDEEM-related topics', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'redemption' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+    }, 15_000);
 
-    test(
-      '"exile and return" surfaces Jeremiah or Ezekiel as witnesses',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'exile and return' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"exile and return" surfaces Jeremiah or Ezekiel as witnesses', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'exile and return' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.results.length).toBeGreaterThan(0);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
-        );
-        // Jeremiah and Ezekiel are the primary prophetic witnesses to exile — at least one must appear.
-        const hasExileProphet = witnessBooks.includes('Jeremiah') || witnessBooks.includes('Ezekiel');
-        expect(hasExileProphet).toBe(true);
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.results.length).toBeGreaterThan(0);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      // Jeremiah and Ezekiel are the primary prophetic witnesses to exile — at least one must appear.
+      const hasExileProphet = witnessBooks.includes('Jeremiah') || witnessBooks.includes('Ezekiel');
+      expect(hasExileProphet).toBe(true);
+    }, 15_000);
 
-    test(
-      '"the Holy Spirit" surfaces Acts and John',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'the Holy Spirit' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"the Holy Spirit" surfaces Acts and John', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'the Holy Spirit' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
-        );
-        const expectedBooks = ['Acts', 'John'];
-        const hasExpectedBook = expectedBooks.some((book) =>
-          witnessBooks.includes(book),
-        );
-        expect(hasExpectedBook).toBe(true);
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      const expectedBooks = ['Acts', 'John'];
+      const hasExpectedBook = expectedBooks.some((book) => witnessBooks.includes(book));
+      expect(hasExpectedBook).toBe(true);
+    }, 15_000);
 
-    test(
-      '"end times prophecy" surfaces Daniel or Revelation as witnesses',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'end times prophecy' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"end times prophecy" surfaces Daniel or Revelation as witnesses', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'end times prophecy' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.results.length).toBeGreaterThan(0);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
-        );
-        // Daniel and Revelation are the canonical apocalyptic books — at least one must appear.
-        const hasApocalypticBook = witnessBooks.includes('Daniel') || witnessBooks.includes('Revelation');
-        expect(hasApocalypticBook).toBe(true);
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.results.length).toBeGreaterThan(0);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      // Daniel and Revelation are the canonical apocalyptic books — at least one must appear.
+      const hasApocalypticBook =
+        witnessBooks.includes('Daniel') || witnessBooks.includes('Revelation');
+      expect(hasApocalypticBook).toBe(true);
+    }, 15_000);
 
-    test(
-      '"God\'s sovereignty over nations" surfaces Isaiah/Daniel',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: "God's sovereignty over nations" },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"God\'s sovereignty over nations" surfaces Isaiah/Daniel', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: "God's sovereignty over nations" },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
-        );
-        const expectedBooks = ['Isaiah', 'Daniel'];
-        const hasExpectedBook = expectedBooks.some((book) =>
-          witnessBooks.includes(book),
-        );
-        expect(hasExpectedBook).toBe(true);
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      const expectedBooks = ['Isaiah', 'Daniel'];
+      const hasExpectedBook = expectedBooks.some((book) => witnessBooks.includes(book));
+      expect(hasExpectedBook).toBe(true);
+    }, 15_000);
   },
 );
 
@@ -753,9 +675,7 @@ describe('Tool description routing validation', () => {
       (t: { name: string }) => t.name === 'topical_search',
     );
     expect(topicalTool).toBeDefined();
-    expect(topicalTool.description.toLowerCase()).toContain(
-      'what does the bible say',
-    );
+    expect(topicalTool.description.toLowerCase()).toContain('what does the bible say');
   });
 
   test('tool is registered as "semantic_search" not "search_bible"', async () => {
@@ -838,12 +758,8 @@ describe.skipIf(!process.env.CLOUDFLARE_ACCOUNT_ID)(
       expect(parsed1.results.length).toBe(parsed2.results.length);
 
       // Same citations in same order
-      const citations1 = parsed1.results.map(
-        (r: { citation: string }) => r.citation,
-      );
-      const citations2 = parsed2.results.map(
-        (r: { citation: string }) => r.citation,
-      );
+      const citations1 = parsed1.results.map((r: { citation: string }) => r.citation);
+      const citations2 = parsed2.results.map((r: { citation: string }) => r.citation);
       expect(citations1).toEqual(citations2);
     });
   },
@@ -857,277 +773,228 @@ describe.skipIf(!process.env.CLOUDFLARE_ACCOUNT_ID)(
 describe.skipIf(!process.env.CLOUDFLARE_ACCOUNT_ID)(
   'Tool: topical_search — expanded thematic coverage',
   () => {
-    test(
-      '"God\'s faithfulness during suffering" surfaces Job as a witness',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: "God's faithfulness during suffering" },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"God\'s faithfulness during suffering" surfaces Job as a witness', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: "God's faithfulness during suffering" },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.results.length).toBeGreaterThan(0);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
-        );
-        // Job directly addresses God's faithfulness through prolonged suffering.
-        expect(witnessBooks).toContain('Job');
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.results.length).toBeGreaterThan(0);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      // Job directly addresses God's faithfulness through prolonged suffering.
+      expect(witnessBooks).toContain('Job');
+    }, 15_000);
 
-    test(
-      '"God\'s faithfulness during suffering" surfaces Psalms as a witness',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: "God's faithfulness during suffering" },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"God\'s faithfulness during suffering" surfaces Psalms as a witness', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: "God's faithfulness during suffering" },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.results.length).toBeGreaterThan(0);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
-        );
-        // Psalms extensively records God's faithfulness amid lament and suffering.
-        expect(witnessBooks).toContain('Psalms');
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.results.length).toBeGreaterThan(0);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      // Psalms extensively records God's faithfulness amid lament and suffering.
+      expect(witnessBooks).toContain('Psalms');
+    }, 15_000);
 
-    test(
-      '"innocent suffering" returns results and witnesses',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'innocent suffering' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"innocent suffering" returns results and witnesses', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'innocent suffering' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.results.length).toBeGreaterThan(0);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.results.length).toBeGreaterThan(0);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+    }, 15_000);
 
-    test(
-      '"lament and sorrow" surfaces Psalms and Lamentations as witnesses',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'lament and sorrow' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"lament and sorrow" surfaces Psalms and Lamentations as witnesses', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'lament and sorrow' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.results.length).toBeGreaterThan(0);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
-        );
-        // Psalms and Lamentations are the canonical lament literature — both must appear.
-        expect(witnessBooks).toContain('Psalms');
-        expect(witnessBooks).toContain('Lamentations');
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.results.length).toBeGreaterThan(0);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      // Psalms and Lamentations are the canonical lament literature — both must appear.
+      expect(witnessBooks).toContain('Psalms');
+      expect(witnessBooks).toContain('Lamentations');
+    }, 15_000);
 
-    test(
-      '"comfort in affliction" surfaces Isaiah as a witness',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'comfort in affliction' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"comfort in affliction" surfaces Isaiah as a witness', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'comfort in affliction' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.results.length).toBeGreaterThan(0);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
-        );
-        // Isaiah's "comfort, comfort my people" passages are central to this topic.
-        expect(witnessBooks).toContain('Isaiah');
-      },
-      15_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.results.length).toBeGreaterThan(0);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      // Isaiah's "comfort, comfort my people" passages are central to this topic.
+      expect(witnessBooks).toContain('Isaiah');
+    }, 15_000);
 
-    test(
-      'major witnesses have why_this_book_matters field populated',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'suffering' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('major witnesses have why_this_book_matters field populated', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'suffering' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
 
-        for (const witness of parsed.major_witnesses) {
-          expect(typeof witness.why_this_book_matters).toBe('string');
-          expect(witness.why_this_book_matters.length).toBeGreaterThan(0);
+      for (const witness of parsed.major_witnesses) {
+        expect(typeof witness.why_this_book_matters).toBe('string');
+        expect(witness.why_this_book_matters.length).toBeGreaterThan(0);
+      }
+
+      // Job is the canonical book on suffering — it must appear as a witness
+      // and have a non-empty why_this_book_matters string.
+      const job = parsed.major_witnesses.find((w: { book: string }) => w.book === 'Job');
+      expect(job).toBeDefined();
+      expect(typeof job.why_this_book_matters).toBe('string');
+      expect(job.why_this_book_matters.length).toBeGreaterThan(0);
+      // The message must mention the book name.
+      expect(job.why_this_book_matters).toContain('Job');
+    }, 15_000);
+
+    test('major witnesses have themes_matched field populated', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'suffering' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
+
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+
+      for (const witness of parsed.major_witnesses) {
+        expect(Array.isArray(witness.themes_matched)).toBe(true);
+        expect(witness.themes_matched.length).toBeGreaterThan(0);
+        for (const theme of witness.themes_matched) {
+          expect(typeof theme).toBe('string');
         }
+      }
 
-        // Job is the canonical book on suffering — it must appear as a witness
-        // and have a non-empty why_this_book_matters string.
-        const job = parsed.major_witnesses.find(
-          (w: { book: string }) => w.book === 'Job',
-        );
-        expect(job).toBeDefined();
-        expect(typeof job.why_this_book_matters).toBe('string');
-        expect(job.why_this_book_matters.length).toBeGreaterThan(0);
-        // The message must mention the book name.
-        expect(job.why_this_book_matters).toContain('Job');
-      },
-      15_000,
-    );
+      // At least one witness must have a theme_matched that mentions
+      // "suffering" or "affliction" (case-insensitive) — confirming the
+      // themes are query-relevant, not generic.
+      const allThemes: string[] = parsed.major_witnesses.flatMap(
+        (w: { themes_matched: string[] }) => w.themes_matched,
+      );
+      const hasRelevantTheme = allThemes.some((t) => {
+        const lower = t.toLowerCase();
+        return lower.includes('suffering') || lower.includes('affliction');
+      });
+      expect(hasRelevantTheme).toBe(true);
+    }, 15_000);
 
-    test(
-      'major witnesses have themes_matched field populated',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'suffering' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('major witnesses have suggested_anchor_passages field', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'suffering' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
 
-        for (const witness of parsed.major_witnesses) {
-          expect(Array.isArray(witness.themes_matched)).toBe(true);
-          expect(witness.themes_matched.length).toBeGreaterThan(0);
-          for (const theme of witness.themes_matched) {
-            expect(typeof theme).toBe('string');
-          }
+      for (const witness of parsed.major_witnesses) {
+        expect(Array.isArray(witness.suggested_anchor_passages)).toBe(true);
+        for (const passage of witness.suggested_anchor_passages) {
+          expect(typeof passage).toBe('string');
         }
+      }
 
-        // At least one witness must have a theme_matched that mentions
-        // "suffering" or "affliction" (case-insensitive) — confirming the
-        // themes are query-relevant, not generic.
-        const allThemes: string[] = parsed.major_witnesses.flatMap(
-          (w: { themes_matched: string[] }) => w.themes_matched,
-        );
-        const hasRelevantTheme = allThemes.some((t) => {
-          const lower = t.toLowerCase();
-          return lower.includes('suffering') || lower.includes('affliction');
-        });
-        expect(hasRelevantTheme).toBe(true);
-      },
-      15_000,
-    );
+      // At least one witness must have non-empty suggested_anchor_passages.
+      const hasPassages = parsed.major_witnesses.some(
+        (w: { suggested_anchor_passages: string[] }) => w.suggested_anchor_passages.length > 0,
+      );
+      expect(hasPassages).toBe(true);
 
-    test(
-      'major witnesses have suggested_anchor_passages field',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'suffering' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
-
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-
-        for (const witness of parsed.major_witnesses) {
-          expect(Array.isArray(witness.suggested_anchor_passages)).toBe(true);
-          for (const passage of witness.suggested_anchor_passages) {
-            expect(typeof passage).toBe('string');
-          }
+      // Most passage references contain a number (e.g. "Job 1", "Job 1:21").
+      // Short books (4 chapters or fewer) may return just the book name when
+      // topic coverage spans the whole book — so we don't require a digit on
+      // every entry, only that the string is non-empty and contains the book name.
+      const allPassages: string[] = parsed.major_witnesses.flatMap(
+        (w: { suggested_anchor_passages: string[]; book: string }) => w.suggested_anchor_passages,
+      );
+      for (const witness of parsed.major_witnesses) {
+        for (const passage of witness.suggested_anchor_passages) {
+          expect(typeof passage).toBe('string');
+          expect(passage.length).toBeGreaterThan(0);
+          // Passage must reference the witness's own book.
+          expect(passage).toContain(witness.book);
         }
+      }
+      // At least one passage across all witnesses should contain a number.
+      const passagesWithNumbers = allPassages.filter((p) => /\d/.test(p));
+      if (allPassages.length > 0) {
+        expect(passagesWithNumbers.length).toBeGreaterThan(0);
+      }
+    }, 15_000);
 
-        // At least one witness must have non-empty suggested_anchor_passages.
-        const hasPassages = parsed.major_witnesses.some(
-          (w: { suggested_anchor_passages: string[] }) =>
-            w.suggested_anchor_passages.length > 0,
-        );
-        expect(hasPassages).toBe(true);
+    test('narrative_reason field exists on major witnesses (string or undefined)', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'providence' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        // Most passage references contain a number (e.g. "Job 1", "Job 1:21").
-        // Short books (4 chapters or fewer) may return just the book name when
-        // topic coverage spans the whole book — so we don't require a digit on
-        // every entry, only that the string is non-empty and contains the book name.
-        const allPassages: string[] = parsed.major_witnesses.flatMap(
-          (w: { suggested_anchor_passages: string[]; book: string }) =>
-            w.suggested_anchor_passages,
-        );
-        for (const witness of parsed.major_witnesses) {
-          for (const passage of witness.suggested_anchor_passages) {
-            expect(typeof passage).toBe('string');
-            expect(passage.length).toBeGreaterThan(0);
-            // Passage must reference the witness's own book.
-            expect(passage).toContain(witness.book);
-          }
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+
+      // narrative_reason is optional — witnesses with a narrative arc get it,
+      // others do not. Validate the field is either a non-empty string or absent.
+      for (const witness of parsed.major_witnesses) {
+        if (witness.narrative_reason !== undefined) {
+          expect(typeof witness.narrative_reason).toBe('string');
+          expect(witness.narrative_reason.length).toBeGreaterThan(0);
         }
-        // At least one passage across all witnesses should contain a number.
-        const passagesWithNumbers = allPassages.filter((p) => /\d/.test(p));
-        if (allPassages.length > 0) {
-          expect(passagesWithNumbers.length).toBeGreaterThan(0);
-        }
-      },
-      15_000,
-    );
+      }
 
-    test(
-      'narrative_reason field exists on major witnesses (string or undefined)',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'providence' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
-
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-
-        // narrative_reason is optional — witnesses with a narrative arc get it,
-        // others do not. Validate the field is either a non-empty string or absent.
-        for (const witness of parsed.major_witnesses) {
-          if (witness.narrative_reason !== undefined) {
-            expect(typeof witness.narrative_reason).toBe('string');
-            expect(witness.narrative_reason.length).toBeGreaterThan(0);
-          }
-        }
-
-        // The field must exist as a key on the object (present or undefined),
-        // confirming the serialization includes it when set.
-        const witnessesWithNarrative = parsed.major_witnesses.filter(
-          (w: { narrative_reason?: string }) =>
-            w.narrative_reason !== undefined,
-        );
-        // Not asserting count — just that any present value is a non-empty string.
-        for (const w of witnessesWithNarrative) {
-          expect(typeof w.narrative_reason).toBe('string');
-          expect(w.narrative_reason.length).toBeGreaterThan(0);
-        }
-      },
-      15_000,
-    );
+      // The field must exist as a key on the object (present or undefined),
+      // confirming the serialization includes it when set.
+      const witnessesWithNarrative = parsed.major_witnesses.filter(
+        (w: { narrative_reason?: string }) => w.narrative_reason !== undefined,
+      );
+      // Not asserting count — just that any present value is a non-empty string.
+      for (const w of witnessesWithNarrative) {
+        expect(typeof w.narrative_reason).toBe('string');
+        expect(w.narrative_reason.length).toBeGreaterThan(0);
+      }
+    }, 15_000);
   },
 );
 
@@ -1140,150 +1007,122 @@ describe.skipIf(!process.env.CLOUDFLARE_ACCOUNT_ID)(
 describe.skipIf(!process.env.CLOUDFLARE_ACCOUNT_ID)(
   'Tool: topical_search — story grounding',
   () => {
-    test(
-      '"Noah and the ark" returns Genesis as the central witness',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'Noah and the ark' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"Noah and the ark" returns Genesis as the central witness', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'Noah and the ark' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
-        );
-        // Genesis is the canonical narrative home of the Noah story.
-        expect(witnessBooks).toContain('Genesis');
-        // Genesis must be the first (central) witness.
-        expect(witnessBooks[0]).toBe('Genesis');
-      },
-      20_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      // Genesis is the canonical narrative home of the Noah story.
+      expect(witnessBooks).toContain('Genesis');
+      // Genesis must be the first (central) witness.
+      expect(witnessBooks[0]).toBe('Genesis');
+    }, 20_000);
 
-    test(
-      '"Noah and the ark" anchor passages fall within Genesis 5–9',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'Noah and the ark' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"Noah and the ark" anchor passages fall within Genesis 5–9', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'Noah and the ark' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        const genesis = parsed.major_witnesses.find(
-          (w: { book: string }) => w.book === 'Genesis',
-        );
-        expect(genesis).toBeDefined();
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      const genesis = parsed.major_witnesses.find((w: { book: string }) => w.book === 'Genesis');
+      expect(genesis).toBeDefined();
 
-        // Anchor passages must reference Genesis and fall within chapters 5–9.
-        // The Noah narrative spans Genesis 6–9 (the flood account proper), with
-        // the genealogy in chapter 5. Any anchor passage outside this range
-        // (e.g. Genesis 22, 46) indicates story grounding is broken.
-        const passages: string[] = genesis.suggested_anchor_passages ?? [];
-        expect(passages.length).toBeGreaterThan(0);
-        for (const passage of passages) {
-          expect(passage).toContain('Genesis');
-          // Extract chapter numbers from passage strings like "Genesis 6-9" or "Genesis 7"
-          const chapterMatches = passage.match(/Genesis (\d+)/g) ?? [];
-          for (const match of chapterMatches) {
-            const chapter = parseInt(match.replace('Genesis ', ''), 10);
-            expect(chapter).toBeGreaterThanOrEqual(5);
-            expect(chapter).toBeLessThanOrEqual(9);
-          }
+      // Anchor passages must reference Genesis and fall within chapters 5–9.
+      // The Noah narrative spans Genesis 6–9 (the flood account proper), with
+      // the genealogy in chapter 5. Any anchor passage outside this range
+      // (e.g. Genesis 22, 46) indicates story grounding is broken.
+      const passages: string[] = genesis.suggested_anchor_passages ?? [];
+      expect(passages.length).toBeGreaterThan(0);
+      for (const passage of passages) {
+        expect(passage).toContain('Genesis');
+        // Extract chapter numbers from passage strings like "Genesis 6-9" or "Genesis 7"
+        const chapterMatches = passage.match(/Genesis (\d+)/g) ?? [];
+        for (const match of chapterMatches) {
+          const chapter = parseInt(match.replace('Genesis ', ''), 10);
+          expect(chapter).toBeGreaterThanOrEqual(5);
+          expect(chapter).toBeLessThanOrEqual(9);
         }
-      },
-      20_000,
-    );
+      }
+    }, 20_000);
 
-    test(
-      '"Noah and the ark" does NOT include Exodus or Numbers as witnesses',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'Noah and the ark' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"Noah and the ark" does NOT include Exodus or Numbers as witnesses', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'Noah and the ark' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      // Exodus and Numbers have no direct Noah/Flood/Ark content.
+      // They must not appear as witnesses (they accumulate co-occurring topic
+      // hits from covenant/sacrifice topics shared with Noah topics).
+      expect(witnessBooks).not.toContain('Exodus');
+      expect(witnessBooks).not.toContain('Numbers');
+    }, 20_000);
+
+    test('"Noah and the ark" allows Hebrews or 1 Peter as secondary witnesses', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: 'Noah and the ark' },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
+
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      const witnessBooks: string[] = parsed.major_witnesses.map((w: { book: string }) => w.book);
+      // Hebrews 11:7 and 1 Peter 3:20 are legitimate direct references
+      // to Noah. At least one should appear as a secondary witness.
+      // This test is a soft assertion (toSatisfy) — it verifies the
+      // filter doesn't over-exclude legitimate interpretive witnesses.
+      const hasLegitimateSecondary =
+        witnessBooks.includes('Hebrews') || witnessBooks.includes('1 Peter');
+      // Not a hard failure — log the result for visibility.
+      if (!hasLegitimateSecondary) {
+        console.warn(
+          '[test] Noah query: Hebrews/1 Peter not in witnesses — acceptable if Genesis dominates correctly.',
+          witnessBooks,
         );
-        // Exodus and Numbers have no direct Noah/Flood/Ark content.
-        // They must not appear as witnesses (they accumulate co-occurring topic
-        // hits from covenant/sacrifice topics shared with Noah topics).
-        expect(witnessBooks).not.toContain('Exodus');
-        expect(witnessBooks).not.toContain('Numbers');
-      },
-      20_000,
-    );
+      }
+      // Genesis must still be present regardless.
+      expect(witnessBooks).toContain('Genesis');
+    }, 20_000);
 
-    test(
-      '"Noah and the ark" allows Hebrews or 1 Peter as secondary witnesses',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: 'Noah and the ark' },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
+    test('"God\'s faithfulness during suffering" themes_matched does not include "the church" (regression)', async () => {
+      const req = createRequest('tools/call', {
+        name: 'topical_search',
+        arguments: { topic: "God's faithfulness during suffering" },
+      });
+      const res = await server.fetch(req);
+      const data = await getResponse(res);
 
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        const witnessBooks: string[] = parsed.major_witnesses.map(
-          (w: { book: string }) => w.book,
-        );
-        // Hebrews 11:7 and 1 Peter 3:20 are legitimate direct references
-        // to Noah. At least one should appear as a secondary witness.
-        // This test is a soft assertion (toSatisfy) — it verifies the
-        // filter doesn't over-exclude legitimate interpretive witnesses.
-        const hasLegitimateSecondary =
-          witnessBooks.includes('Hebrews') || witnessBooks.includes('1 Peter');
-        // Not a hard failure — log the result for visibility.
-        if (!hasLegitimateSecondary) {
-          console.warn(
-            '[test] Noah query: Hebrews/1 Peter not in witnesses — acceptable if Genesis dominates correctly.',
-            witnessBooks,
-          );
-        }
-        // Genesis must still be present regardless.
-        expect(witnessBooks).toContain('Genesis');
-      },
-      20_000,
-    );
+      expect(data.result.isError).toBeFalsy();
+      const parsed = JSON.parse(data.result.content[0].text);
+      expect(parsed.major_witnesses.length).toBeGreaterThan(0);
 
-    test(
-      '"God\'s faithfulness during suffering" themes_matched does not include "the church" (regression)',
-      async () => {
-        const req = createRequest('tools/call', {
-          name: 'topical_search',
-          arguments: { topic: "God's faithfulness during suffering" },
-        });
-        const res = await server.fetch(req);
-        const data = await getResponse(res);
-
-        expect(data.result.isError).toBeFalsy();
-        const parsed = JSON.parse(data.result.content[0].text);
-        expect(parsed.major_witnesses.length).toBeGreaterThan(0);
-
-        // "the church" is a noisy co-occurring theme label that appears via the
-        // CHURCH topic. It co-occurs with suffering topics but is not thematically
-        // relevant to a faithfulness-during-suffering query. The stricter 0.8
-        // threshold for co-occurring topics should prevent it from appearing.
-        const allThemes: string[] = parsed.major_witnesses.flatMap(
-          (w: { themes_matched?: string[] }) => w.themes_matched ?? [],
-        );
-        expect(allThemes).not.toContain('the church');
-      },
-      20_000,
-    );
+      // "the church" is a noisy co-occurring theme label that appears via the
+      // CHURCH topic. It co-occurs with suffering topics but is not thematically
+      // relevant to a faithfulness-during-suffering query. The stricter 0.8
+      // threshold for co-occurring topics should prevent it from appearing.
+      const allThemes: string[] = parsed.major_witnesses.flatMap(
+        (w: { themes_matched?: string[] }) => w.themes_matched ?? [],
+      );
+      expect(allThemes).not.toContain('the church');
+    }, 20_000);
   },
 );
 
@@ -1295,15 +1134,18 @@ describe.skipIf(!process.env.CLOUDFLARE_ACCOUNT_ID)(
 
 describe('Genre-aware explanation templates', () => {
   // Minimal WitnessCandidate factory for testing.
-  function makeCandidate(bookName: string, overrides?: Partial<{
-    book_id: number;
-    testament: string;
-    verse_count: number;
-    chapter_count: number;
-    min_chapter: number;
-    max_chapter: number;
-    topic_names: string;
-  }>) {
+  function makeCandidate(
+    bookName: string,
+    overrides?: Partial<{
+      book_id: number;
+      testament: string;
+      verse_count: number;
+      chapter_count: number;
+      min_chapter: number;
+      max_chapter: number;
+      topic_names: string;
+    }>,
+  ) {
     return {
       book_id: 1,
       book_name: bookName,
@@ -1398,23 +1240,38 @@ describe('Genre-aware explanation templates', () => {
       const themes = ['suffering'];
       const psalmResult = buildWhyThisBookMatters(
         makeCandidate('Psalms'),
-        emptyMap, emptyIds, emptyTopics, themes,
+        emptyMap,
+        emptyIds,
+        emptyTopics,
+        themes,
       );
       const jobResult = buildWhyThisBookMatters(
         makeCandidate('Job'),
-        emptyMap, emptyIds, emptyTopics, themes,
+        emptyMap,
+        emptyIds,
+        emptyTopics,
+        themes,
       );
       const isaiahResult = buildWhyThisBookMatters(
         makeCandidate('Isaiah'),
-        emptyMap, emptyIds, emptyTopics, themes,
+        emptyMap,
+        emptyIds,
+        emptyTopics,
+        themes,
       );
       const romansResult = buildWhyThisBookMatters(
         makeCandidate('Romans'),
-        emptyMap, emptyIds, emptyTopics, themes,
+        emptyMap,
+        emptyIds,
+        emptyTopics,
+        themes,
       );
       const johnResult = buildWhyThisBookMatters(
         makeCandidate('John'),
-        emptyMap, emptyIds, emptyTopics, themes,
+        emptyMap,
+        emptyIds,
+        emptyTopics,
+        themes,
       );
 
       // All five should be distinct strings.
@@ -1428,7 +1285,10 @@ describe('Genre-aware explanation templates', () => {
       for (const book of books) {
         const result = buildWhyThisBookMatters(
           makeCandidate(book),
-          emptyMap, emptyIds, emptyTopics, ['faith'],
+          emptyMap,
+          emptyIds,
+          emptyTopics,
+          ['faith'],
         );
         expect(result).not.toMatch(/concentrates on .+, with \d+ topical references spanning/);
       }
@@ -1437,51 +1297,43 @@ describe('Genre-aware explanation templates', () => {
 
   describe('buildWitnessMatchReason', () => {
     test('Poetry genre (Psalms) mentions prayer or lament', () => {
-      const result = buildWitnessMatchReason(
-        makeCandidate('Psalms'),
-        undefined,
-        ['lament', 'trust'],
-      );
+      const result = buildWitnessMatchReason(makeCandidate('Psalms'), undefined, [
+        'lament',
+        'trust',
+      ]);
       expect(result).toContain('Psalms');
       expect(result).toMatch(/prayer|lament|praise|trust/i);
     });
 
     test('Epistle genre (Ephesians) mentions teaching or doctrinal', () => {
-      const result = buildWitnessMatchReason(
-        makeCandidate('Ephesians'),
-        undefined,
-        ['grace', 'faith'],
-      );
+      const result = buildWitnessMatchReason(makeCandidate('Ephesians'), undefined, [
+        'grace',
+        'faith',
+      ]);
       expect(result).toContain('Ephesians');
       expect(result).toMatch(/teaches|doctrinal|pastoral/i);
     });
 
     test('Prophecy genre (Jeremiah) mentions proclamation or promise', () => {
-      const result = buildWitnessMatchReason(
-        makeCandidate('Jeremiah'),
-        undefined,
-        ['exile', 'restoration'],
-      );
+      const result = buildWitnessMatchReason(makeCandidate('Jeremiah'), undefined, [
+        'exile',
+        'restoration',
+      ]);
       expect(result).toContain('Jeremiah');
       expect(result).toMatch(/prophetic|proclamation|judgment|promise|restoration/i);
     });
 
     test('Gospel genre with narrative uses life-and-ministry language', () => {
-      const result = buildWitnessMatchReason(
-        makeCandidate('Luke'),
-        'Passion',
-        ['redemption', 'sacrifice'],
-      );
+      const result = buildWitnessMatchReason(makeCandidate('Luke'), 'Passion', [
+        'redemption',
+        'sacrifice',
+      ]);
       expect(result).toContain('Luke');
       expect(result).toMatch(/life|ministry|Jesus|Gospel/i);
     });
 
     test('History genre narrative uses story-arc language', () => {
-      const result = buildWitnessMatchReason(
-        makeCandidate('1 Samuel'),
-        'David',
-        ['kingship'],
-      );
+      const result = buildWitnessMatchReason(makeCandidate('1 Samuel'), 'David', ['kingship']);
       expect(result).toContain('1 Samuel');
       expect(result).toMatch(/narrative|historical|story/i);
     });
@@ -1720,10 +1572,10 @@ describe('Genre-aware clustering (clusterToPassageRanges)', () => {
     test('History genre produces references spanning beginning, middle, and end', () => {
       // Genesis has 50 chapters. Arc thirds: 1-17, 18-34, 35-50.
       const rows = makeRows([
-        { chapter: 2, hit_count: 8 },   // entry arc
-        { chapter: 22, hit_count: 10 },  // crisis arc
-        { chapter: 45, hit_count: 7 },   // resolution arc
-        { chapter: 37, hit_count: 6 },   // resolution arc
+        { chapter: 2, hit_count: 8 }, // entry arc
+        { chapter: 22, hit_count: 10 }, // crisis arc
+        { chapter: 45, hit_count: 7 }, // resolution arc
+        { chapter: 37, hit_count: 6 }, // resolution arc
       ]);
       const result = clusterToPassageRanges(rows, 'Genesis', 50, 'History');
       expect(result.length).toBeGreaterThan(0);
@@ -1737,8 +1589,8 @@ describe('Genre-aware clustering (clusterToPassageRanges)', () => {
     test('Gospel genre uses arc strategy', () => {
       // Matthew has 28 chapters. Arc thirds: 1-10, 11-19, 20-28.
       const rows = makeRows([
-        { chapter: 5, hit_count: 12 },  // entry arc (Sermon on the Mount)
-        { chapter: 16, hit_count: 9 },  // crisis arc
+        { chapter: 5, hit_count: 12 }, // entry arc (Sermon on the Mount)
+        { chapter: 16, hit_count: 9 }, // crisis arc
         { chapter: 26, hit_count: 11 }, // resolution arc (Passion narrative)
       ]);
       const result = clusterToPassageRanges(rows, 'Matthew', 28, 'Gospel');
@@ -1767,12 +1619,18 @@ describe('Genre-aware clustering (clusterToPassageRanges)', () => {
     test('consolation query biases toward latter half of prophetic book', () => {
       // Isaiah has 66 chapters. Midpoint = 33. Consolation is chapters 34-66.
       const rows = makeRows([
-        { chapter: 5, hit_count: 8 },    // judgment section (first half)
-        { chapter: 40, hit_count: 10 },  // consolation section (second half)
-        { chapter: 53, hit_count: 12 },  // consolation section (second half)
-        { chapter: 60, hit_count: 9 },   // consolation section (second half)
+        { chapter: 5, hit_count: 8 }, // judgment section (first half)
+        { chapter: 40, hit_count: 10 }, // consolation section (second half)
+        { chapter: 53, hit_count: 12 }, // consolation section (second half)
+        { chapter: 60, hit_count: 9 }, // consolation section (second half)
       ]);
-      const comfort = clusterToPassageRanges(rows, 'Isaiah', 66, 'Prophecy', 'comfort in affliction');
+      const comfort = clusterToPassageRanges(
+        rows,
+        'Isaiah',
+        66,
+        'Prophecy',
+        'comfort in affliction',
+      );
       // Should prefer consolation chapters (>33) over judgment chapters.
       const hasConsolation = comfort.some((p) => {
         const match = p.match(/Isaiah (\d+)/);
@@ -1783,9 +1641,9 @@ describe('Genre-aware clustering (clusterToPassageRanges)', () => {
 
     test('non-consolation query uses density (returns densest chapters)', () => {
       const rows = makeRows([
-        { chapter: 5, hit_count: 15 },  // dense judgment section
+        { chapter: 5, hit_count: 15 }, // dense judgment section
         { chapter: 6, hit_count: 14 },
-        { chapter: 40, hit_count: 4 },  // sparse consolation
+        { chapter: 40, hit_count: 4 }, // sparse consolation
       ]);
       const judgment = clusterToPassageRanges(rows, 'Isaiah', 66, 'Prophecy', 'idolatry');
       // Should use density, not consolation bias — picks chapters 5-6.
@@ -1899,13 +1757,7 @@ describe('isConsolationQuery', () => {
 
 describe('computeQueryAlignmentScore', () => {
   test('returns 0 when there are no matched topics and no semantic hits', () => {
-    const score = computeQueryAlignmentScore(
-      1,
-      [],
-      new Map(),
-      new Map(),
-      0,
-    );
+    const score = computeQueryAlignmentScore(1, [], new Map(), new Map(), 0);
     expect(score).toBe(0);
   });
 
@@ -1917,7 +1769,7 @@ describe('computeQueryAlignmentScore', () => {
       [10],
       relevance,
       new Map(), // no semantic hits
-      5,         // maxSemanticHits > 0 so normalization is valid
+      5, // maxSemanticHits > 0 so normalization is valid
     );
     // A = 1.0 (avg weight), B = 0 (no hits). Final = 0.5*1.0 + 0.5*0 = 0.5
     expect(score).toBeCloseTo(0.5);
@@ -1938,7 +1790,10 @@ describe('computeQueryAlignmentScore', () => {
   });
 
   test('returns 1.0 when both topic alignment and semantic density are perfect', () => {
-    const relevance = new Map([[10, 1.0], [11, 1.0]]);
+    const relevance = new Map([
+      [10, 1.0],
+      [11, 1.0],
+    ]);
     const hitsPerBook = new Map([[5, 8]]);
     const score = computeQueryAlignmentScore(
       5,
@@ -1964,7 +1819,10 @@ describe('computeQueryAlignmentScore', () => {
 
   test('a book with more semantic hits scores higher than one with fewer (same topic alignment)', () => {
     const relevance = new Map([[10, 1.0]]);
-    const hitsPerBook = new Map([[1, 2], [2, 8]]);
+    const hitsPerBook = new Map([
+      [1, 2],
+      [2, 8],
+    ]);
     const maxHits = 8;
 
     const scoreWithFewHits = computeQueryAlignmentScore(1, [10], relevance, hitsPerBook, maxHits);
@@ -1973,8 +1831,16 @@ describe('computeQueryAlignmentScore', () => {
   });
 
   test('query-alignment score is in [0, 1] range for arbitrary inputs', () => {
-    const relevance = new Map([[1, 0.7], [2, 0.9], [3, 0.3]]);
-    const hitsPerBook = new Map([[100, 5], [101, 3], [102, 0]]);
+    const relevance = new Map([
+      [1, 0.7],
+      [2, 0.9],
+      [3, 0.3],
+    ]);
+    const hitsPerBook = new Map([
+      [100, 5],
+      [101, 3],
+      [102, 0],
+    ]);
 
     for (const bookId of [100, 101, 102]) {
       const score = computeQueryAlignmentScore(bookId, [1, 2, 3], relevance, hitsPerBook, 5);
@@ -1991,13 +1857,25 @@ describe('buildQueryAlignmentNote', () => {
   });
 
   test('mentions the query topic in the output', () => {
-    const note = buildQueryAlignmentNote('Psalms', "God's faithfulness during suffering", ['faithfulness', 'lament'], 3, 0.7);
+    const note = buildQueryAlignmentNote(
+      'Psalms',
+      "God's faithfulness during suffering",
+      ['faithfulness', 'lament'],
+      3,
+      0.7,
+    );
     expect(note).toContain("God's faithfulness during suffering");
   });
 
   test('uses strong-signal phrasing when both signals are high', () => {
     // semanticHits >= 2 AND queryAlignmentScore >= 0.6 → both signals fired
-    const note = buildQueryAlignmentNote('Romans', 'justification by faith', ['justification', 'faith'], 4, 0.75);
+    const note = buildQueryAlignmentNote(
+      'Romans',
+      'justification by faith',
+      ['justification', 'faith'],
+      4,
+      0.75,
+    );
     expect(note).toMatch(/aligns closely|both curated|semantic verse/i);
   });
 
@@ -2009,7 +1887,13 @@ describe('buildQueryAlignmentNote', () => {
 
   test('uses topic-only phrasing when topic alignment is high but no semantic hits', () => {
     // queryAlignmentScore >= 0.6 but semanticHits < 2
-    const note = buildQueryAlignmentNote('Isaiah', 'comfort in affliction', ['comfort', 'restoration'], 0, 0.8);
+    const note = buildQueryAlignmentNote(
+      'Isaiah',
+      'comfort in affliction',
+      ['comfort', 'restoration'],
+      0,
+      0.8,
+    );
     expect(note).toMatch(/curated topics|directly named|topically grounded/i);
   });
 

@@ -4,7 +4,7 @@
 // per verse. Book names are resolved via the alias resolver so common
 // variants (Gen, gen, Genesis) all work.
 
-import type { ResourceHandler } from '@mctx-ai/app';
+import type { ResourceHandler, ModelContext, Response as MctxResponse } from '@mctx-ai/mcp';
 import { d1 } from '../lib/cloudflare.js';
 import {
   getTranslation,
@@ -36,21 +36,22 @@ interface ErrorResult {
   error: string;
 }
 
-const handler: ResourceHandler = async (params) => {
+const handler: ResourceHandler = async (
+  _mctx: ModelContext,
+  req: Record<string, string>,
+  res: MctxResponse,
+) => {
   await ensureInitialized();
 
-  const { translation: translationParam, book, chapter } = params as {
-    translation: string;
-    book: string;
-    chapter: string;
-  };
+  const { translation: translationParam, book, chapter } = req;
 
   const translationUpper = translationParam.toUpperCase();
   if (!isValidTranslation(translationUpper)) {
     const result: ErrorResult = {
       error: `Unknown translation: "${translationParam}". Use bible://translations to list available translations.`,
     };
-    return JSON.stringify(result);
+    res.send(JSON.stringify(result));
+    return;
   }
 
   const resolvedBook = resolveBook(book);
@@ -58,7 +59,8 @@ const handler: ResourceHandler = async (params) => {
     const result: ErrorResult = {
       error: `Unknown book: "${book}". Check spelling or use a common abbreviation (e.g. Gen, Matt, Rev).`,
     };
-    return JSON.stringify(result);
+    res.send(JSON.stringify(result));
+    return;
   }
 
   const chapterNum = parseInt(chapter, 10);
@@ -66,7 +68,8 @@ const handler: ResourceHandler = async (params) => {
     const result: ErrorResult = {
       error: `Chapter must be a positive integer; got "${chapter}".`,
     };
-    return JSON.stringify(result);
+    res.send(JSON.stringify(result));
+    return;
   }
 
   const translation = getTranslation(translationUpper);
@@ -76,7 +79,8 @@ const handler: ResourceHandler = async (params) => {
     const result: ErrorResult = {
       error: `Translation "${translationUpper}" not found in cache. Try again after initialization.`,
     };
-    return JSON.stringify(result);
+    res.send(JSON.stringify(result));
+    return;
   }
 
   const queryResult = await d1.query(
@@ -86,14 +90,15 @@ const handler: ResourceHandler = async (params) => {
         AND v.book_id = ?
         AND v.chapter = ?
       ORDER BY v.verse`,
-    [translation.id, resolvedBook.id, chapterNum]
+    [translation.id, resolvedBook.id, chapterNum],
   );
 
   if (queryResult.results.length === 0) {
     const result: ErrorResult = {
       error: `No verses found for ${resolvedBook.name} chapter ${chapterNum} in ${translationUpper}. The chapter may not exist in this translation.`,
     };
-    return JSON.stringify(result);
+    res.send(JSON.stringify(result));
+    return;
   }
 
   const verses: VerseResult[] = (queryResult.results as unknown as VerseRow[]).map((row) => ({
@@ -108,7 +113,7 @@ const handler: ResourceHandler = async (params) => {
     verses,
   };
 
-  return JSON.stringify(result);
+  res.send(JSON.stringify(result));
 };
 
 handler.description =

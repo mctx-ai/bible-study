@@ -5,8 +5,8 @@
 // User-supplied double-quoted phrases are preserved as exact phrase matches.
 // FTS5 metacharacters are stripped from all unquoted words.
 
-import type { ToolHandler } from '@mctx-ai/app';
-import { T } from '@mctx-ai/app';
+import type { ToolHandler, ModelContext, Response as MctxResponse } from '@mctx-ai/mcp';
+import { T } from '@mctx-ai/mcp';
 import { d1 } from '../lib/cloudflare.js';
 import {
   getTranslation,
@@ -21,10 +21,47 @@ import type { Citation } from '../lib/bible-utils.js';
 
 /** Common English stop words stripped from multi-word queries. */
 const STOP_WORDS = new Set([
-  'a', 'an', 'the', 'in', 'of', 'for', 'to', 'is', 'it', 'and', 'or',
-  'but', 'with', 'by', 'at', 'on', 'from', 'as', 'be', 'was', 'were',
-  'been', 'are', 'am', 'do', 'does', 'did', 'has', 'have', 'had', 'this',
-  'that', 'these', 'those', 'so', 'if', 'not', 'no', 'up', 'out', 'its',
+  'a',
+  'an',
+  'the',
+  'in',
+  'of',
+  'for',
+  'to',
+  'is',
+  'it',
+  'and',
+  'or',
+  'but',
+  'with',
+  'by',
+  'at',
+  'on',
+  'from',
+  'as',
+  'be',
+  'was',
+  'were',
+  'been',
+  'are',
+  'am',
+  'do',
+  'does',
+  'did',
+  'has',
+  'have',
+  'had',
+  'this',
+  'that',
+  'these',
+  'those',
+  'so',
+  'if',
+  'not',
+  'no',
+  'up',
+  'out',
+  'its',
 ]);
 
 /** Strip FTS5 metacharacters from an individual word. */
@@ -110,21 +147,28 @@ interface FindTextResult {
 const FIND_TEXT_DEFAULT_LIMIT = 20;
 const FIND_TEXT_MAX_LIMIT = 100;
 
-const findText: ToolHandler = async (args, _ask?) => {
+const findText: ToolHandler = async (_mctx: ModelContext, req, res: MctxResponse) => {
   await ensureInitialized();
 
-  const { query, translation, limit: rawLimit } = args as {
+  const {
+    query,
+    translation,
+    limit: rawLimit,
+  } = req as {
     query: string;
     translation?: string;
     limit?: number;
   };
 
-  const limit = Math.max(1, Math.floor(Math.min(rawLimit ?? FIND_TEXT_DEFAULT_LIMIT, FIND_TEXT_MAX_LIMIT)));
+  const limit = Math.max(
+    1,
+    Math.floor(Math.min(rawLimit ?? FIND_TEXT_DEFAULT_LIMIT, FIND_TEXT_MAX_LIMIT)),
+  );
 
   // Validate translation filter if provided.
   if (translation !== undefined && !isValidTranslation(translation)) {
     throw new Error(
-      `Unknown translation "${translation}". Use the bible://translations resource to list available translations.`
+      `Unknown translation "${translation}". Use the bible://translations resource to list available translations.`,
     );
   }
 
@@ -138,7 +182,8 @@ const findText: ToolHandler = async (args, _ask?) => {
       count: 0,
       verses: [],
     };
-    return { ...response, message: 'No searchable terms found — try more specific keywords.' };
+    res.send({ ...response, message: 'No searchable terms found — try more specific keywords.' });
+    return;
   }
 
   let sql: string;
@@ -204,7 +249,7 @@ const findText: ToolHandler = async (args, _ask?) => {
     verses,
   };
 
-  return response;
+  res.send(response);
 };
 
 findText.annotations = {

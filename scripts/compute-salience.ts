@@ -283,7 +283,7 @@ async function insertSalienceRows(rows: SalienceRow[]): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  console.log('Bible Study App — Topic Book Salience ETL');
+  console.log('Bible Study MCP Server — Topic Book Salience ETL');
   console.log('==========================================\n');
 
   const required = [

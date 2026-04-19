@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ===========================================================================
-# etl-all.sh — Run the complete Bible Study App ETL pipeline in order
+# etl-all.sh — Run the complete Bible Study MCP Server ETL pipeline in order
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
