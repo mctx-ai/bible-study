@@ -51,7 +51,8 @@ function createRequest(method: string, params: Record<string, unknown> = {}) {
 }
 
 // Helper to parse JSON-RPC response
-async function getResponse(response: Response) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getResponse(response: any): Promise<any> {
   const data = await response.json();
   return data;
 }
