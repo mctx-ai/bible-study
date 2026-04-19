@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A **Bible study MCP server** built with `@mctx-ai/app` framework, deployed on the mctx.ai platform at `bible-study.mctx.ai`.
+A **Bible study MCP server** built with `@mctx-ai/mcp` framework (v2), deployed on the mctx.ai platform at `bible-study.mctx.ai`.
 
 **Purpose:** Deep Bible study for MCP-compatible AI clients. 155,510 verses across 5 public domain translations (KJV, WEB, ASV, YLT, Darby). Semantic search via 155K+ vector embeddings. 606,140 cross-references. 17,543 Strong's concordance entries with Hebrew and Greek lexicon definitions. 447,734 morphology records. 5,319 Nave's Topical Bible categories. Full-text search via FTS5.
 
@@ -61,11 +61,21 @@ Violating this boundary causes Cloudflare Workers deployment failure (error 1002
 2. Attach metadata (`.description`, `.input`, `.mimeType`)
 3. Register with server via `server.tool()`, `server.resource()`, or `server.prompt()`
 
-**Handler signatures:**
-- **ToolHandler:** `(args, ask?) => string | object | Promise<string | object>`
-- **GeneratorToolHandler:** `function* (args) { yield progress; return result; }`
-- **ResourceHandler:** `(params) => string`
-- **PromptHandler:** `(args) => string | conversation(...)`
+**Handler signatures (v2):**
+
+All handler types use `(mctx, req, res)`:
+- `mctx` — `ModelContext` with optional `userId`
+- `req` — validated input fields accessed directly (`req.query`, `req.book`, etc.)
+- `res` — output port: `res.send(value)`, `res.progress(current, total?)`, `res.ask(prompt)`
+
+Examples:
+- **ToolHandler:** `(mctx, req, res) => { res.send(result); }`
+- **ResourceHandler:** `(mctx, req, res) => { res.send(JSON.stringify(data)); }`
+- **PromptHandler:** `(mctx, req, res) => { res.send(conversation(...)); }`
+
+Handlers no longer return values. Call `res.send()` to emit the result.
+Progress uses `res.progress(current, total?)` instead of generator functions.
+Sampling uses `res.ask(prompt)` instead of the `ask` parameter.
 
 **Schema system:** The `T` namespace provides type-safe schema builders (`.string()`, `.number()`, `.boolean()`, etc.) with validation constraints.
 
