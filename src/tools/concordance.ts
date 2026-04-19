@@ -5,8 +5,8 @@
 // configurable result limit. When results are truncated a total_count field
 // is included so callers know there are more matches.
 
-import type { ToolHandler } from '@mctx-ai/app';
-import { T } from '@mctx-ai/app';
+import type { ToolHandler, ModelContext, Response as MctxResponse } from '@mctx-ai/mcp';
+import { T } from '@mctx-ai/mcp';
 import { d1 } from '../lib/cloudflare.js';
 import {
   getTranslation,
@@ -41,14 +41,14 @@ interface ConcordanceResult {
 const CONCORDANCE_DEFAULT_LIMIT = 100;
 const CONCORDANCE_MAX_LIMIT = 500;
 
-const concordance: ToolHandler = async (args, _ask?) => {
+const concordance: ToolHandler = async (_mctx: ModelContext, req, res: MctxResponse) => {
   await ensureInitialized();
 
   const {
     query,
     translation,
     limit: rawLimit,
-  } = args as {
+  } = req as {
     query: string;
     translation?: string;
     limit?: number;
@@ -76,7 +76,8 @@ const concordance: ToolHandler = async (args, _ask?) => {
       truncated: false,
       occurrences: [],
     };
-    return { ...response, message: 'No searchable terms found — try more specific keywords.' };
+    res.send({ ...response, message: 'No searchable terms found — try more specific keywords.' });
+    return;
   }
 
   // Fetch one extra row beyond the limit so we can detect truncation without
@@ -191,7 +192,7 @@ const concordance: ToolHandler = async (args, _ask?) => {
     response.total_count = countResult.results[0]['total'] as number;
   }
 
-  return response;
+  res.send(response);
 };
 
 concordance.annotations = {

@@ -5,8 +5,8 @@
 // User-supplied double-quoted phrases are preserved as exact phrase matches.
 // FTS5 metacharacters are stripped from all unquoted words.
 
-import type { ToolHandler } from '@mctx-ai/app';
-import { T } from '@mctx-ai/app';
+import type { ToolHandler, ModelContext, Response as MctxResponse } from '@mctx-ai/mcp';
+import { T } from '@mctx-ai/mcp';
 import { d1 } from '../lib/cloudflare.js';
 import {
   getTranslation,
@@ -147,14 +147,14 @@ interface FindTextResult {
 const FIND_TEXT_DEFAULT_LIMIT = 20;
 const FIND_TEXT_MAX_LIMIT = 100;
 
-const findText: ToolHandler = async (args, _ask?) => {
+const findText: ToolHandler = async (_mctx: ModelContext, req, res: MctxResponse) => {
   await ensureInitialized();
 
   const {
     query,
     translation,
     limit: rawLimit,
-  } = args as {
+  } = req as {
     query: string;
     translation?: string;
     limit?: number;
@@ -182,7 +182,8 @@ const findText: ToolHandler = async (args, _ask?) => {
       count: 0,
       verses: [],
     };
-    return { ...response, message: 'No searchable terms found — try more specific keywords.' };
+    res.send({ ...response, message: 'No searchable terms found — try more specific keywords.' });
+    return;
   }
 
   let sql: string;
@@ -248,7 +249,7 @@ const findText: ToolHandler = async (args, _ask?) => {
     verses,
   };
 
-  return response;
+  res.send(response);
 };
 
 findText.annotations = {

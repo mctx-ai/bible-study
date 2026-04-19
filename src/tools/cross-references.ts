@@ -4,8 +4,8 @@
 // Each result includes the referenced verse text (KJV) and structured Citations
 // for both the source verse and the referenced verse.
 
-import type { ToolHandler } from '@mctx-ai/app';
-import { T } from '@mctx-ai/app';
+import type { ToolHandler, ModelContext, Response as MctxResponse } from '@mctx-ai/mcp';
+import { T } from '@mctx-ai/mcp';
 import { d1 } from '../lib/cloudflare.js';
 import {
   resolveBook,
@@ -38,7 +38,7 @@ interface CrossReferencesResult {
 const DEFAULT_TRANSLATION = 'KJV';
 const DEFAULT_LIMIT = 20;
 
-const crossReferences: ToolHandler = async (args, _ask?) => {
+const crossReferences: ToolHandler = async (_mctx: ModelContext, req, res: MctxResponse) => {
   await ensureInitialized();
 
   const {
@@ -46,7 +46,7 @@ const crossReferences: ToolHandler = async (args, _ask?) => {
     chapter,
     verse,
     limit: rawLimit,
-  } = args as {
+  } = req as {
     book: string;
     chapter: number;
     verse: number;
@@ -151,7 +151,7 @@ const crossReferences: ToolHandler = async (args, _ask?) => {
     total_returned: crossReferenceEntries.length,
   };
 
-  return response;
+  res.send(response);
 };
 
 crossReferences.annotations = {

@@ -4,7 +4,7 @@
 // requested verse is marked with `requested: true` so callers can identify
 // it within the context window. All verses carry structured Citation objects.
 
-import type { ResourceHandler } from '@mctx-ai/app';
+import type { ResourceHandler, ModelContext, Response as MctxResponse } from '@mctx-ai/mcp';
 import { d1 } from '../lib/cloudflare.js';
 import {
   getTranslation,
@@ -42,27 +42,22 @@ interface ErrorResult {
   error: string;
 }
 
-const handler: ResourceHandler = async (params) => {
+const handler: ResourceHandler = async (
+  _mctx: ModelContext,
+  req: Record<string, string>,
+  res: MctxResponse,
+) => {
   await ensureInitialized();
 
-  const {
-    translation: translationParam,
-    book,
-    chapter,
-    verse,
-  } = params as {
-    translation: string;
-    book: string;
-    chapter: string;
-    verse: string;
-  };
+  const { translation: translationParam, book, chapter, verse } = req;
 
   const translationUpper = translationParam.toUpperCase();
   if (!isValidTranslation(translationUpper)) {
     const result: ErrorResult = {
       error: `Unknown translation: "${translationParam}". Use bible://translations to list available translations.`,
     };
-    return JSON.stringify(result);
+    res.send(JSON.stringify(result));
+    return;
   }
 
   const resolvedBook = resolveBook(book);
@@ -70,7 +65,8 @@ const handler: ResourceHandler = async (params) => {
     const result: ErrorResult = {
       error: `Unknown book: "${book}". Check spelling or use a common abbreviation (e.g. Gen, Matt, Rev).`,
     };
-    return JSON.stringify(result);
+    res.send(JSON.stringify(result));
+    return;
   }
 
   const chapterNum = parseInt(chapter, 10);
@@ -78,7 +74,8 @@ const handler: ResourceHandler = async (params) => {
     const result: ErrorResult = {
       error: `Chapter must be a positive integer; got "${chapter}".`,
     };
-    return JSON.stringify(result);
+    res.send(JSON.stringify(result));
+    return;
   }
 
   const verseNum = parseInt(verse, 10);
@@ -86,7 +83,8 @@ const handler: ResourceHandler = async (params) => {
     const result: ErrorResult = {
       error: `Verse must be a positive integer; got "${verse}".`,
     };
-    return JSON.stringify(result);
+    res.send(JSON.stringify(result));
+    return;
   }
 
   const translation = getTranslation(translationUpper);
@@ -96,7 +94,8 @@ const handler: ResourceHandler = async (params) => {
     const result: ErrorResult = {
       error: `Translation "${translationUpper}" not found in cache. Try again after initialization.`,
     };
-    return JSON.stringify(result);
+    res.send(JSON.stringify(result));
+    return;
   }
 
   const minVerse = Math.max(1, verseNum - CONTEXT_BEFORE);
@@ -118,7 +117,8 @@ const handler: ResourceHandler = async (params) => {
     const result: ErrorResult = {
       error: `No verses found near ${resolvedBook.name} ${chapterNum}:${verseNum} in ${translationUpper}. Verify the reference exists.`,
     };
-    return JSON.stringify(result);
+    res.send(JSON.stringify(result));
+    return;
   }
 
   // Check the requested verse is actually present in the result set.
@@ -128,7 +128,8 @@ const handler: ResourceHandler = async (params) => {
     const result: ErrorResult = {
       error: `Verse ${verseNum} does not exist in ${resolvedBook.name} chapter ${chapterNum} (${translationUpper}).`,
     };
-    return JSON.stringify(result);
+    res.send(JSON.stringify(result));
+    return;
   }
 
   const verses: VerseResult[] = rows.map((row) => {
@@ -150,7 +151,7 @@ const handler: ResourceHandler = async (params) => {
     verses,
   };
 
-  return JSON.stringify(result);
+  res.send(JSON.stringify(result));
 };
 
 handler.description =

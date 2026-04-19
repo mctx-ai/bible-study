@@ -10,8 +10,8 @@
 //   4. Build major witnesses from expanded topics + semantic results
 //   5. Return combined results with source attribution and match explanations
 
-import type { ToolHandler } from '@mctx-ai/app';
-import { T } from '@mctx-ai/app';
+import type { ToolHandler, ModelContext, Response as MctxResponse } from '@mctx-ai/mcp';
+import { T } from '@mctx-ai/mcp';
 import { d1, vectorize, vectorizeTopics, workersAi } from '../lib/cloudflare.js';
 import type { Citation } from '../lib/bible-utils.js';
 import { getTranslation, ensureInitialized } from '../lib/bible-utils.js';
@@ -2727,10 +2727,10 @@ function capConsecutiveVerses(
 
 // ─── Tool handler ─────────────────────────────────────────────────────────────
 
-const topicalSearch: ToolHandler = async (args, _ask?) => {
+const topicalSearch: ToolHandler = async (_mctx: ModelContext, req, res: MctxResponse) => {
   await ensureInitialized();
 
-  const { topic, limit: limitArg } = args as { topic: string; limit?: number };
+  const { topic, limit: limitArg } = req as { topic: string; limit?: number };
   const limit = Math.min(Math.max(limitArg ?? 20, 1), 50);
 
   // Phase 1: Embed query once, fire Nave's search concurrently.
@@ -3073,7 +3073,7 @@ const topicalSearch: ToolHandler = async (args, _ask?) => {
     major_witnesses: majorWitnesses,
   };
 
-  return response;
+  res.send(response);
 };
 
 topicalSearch.annotations = {

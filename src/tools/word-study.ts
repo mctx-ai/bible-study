@@ -17,8 +17,8 @@
 //   7. Query morphology for other verses with the same strongs_number (LIMIT 20).
 //   8. Count total occurrences (distinct verses with that strongs_number).
 
-import type { ToolHandler } from '@mctx-ai/app';
-import { T } from '@mctx-ai/app';
+import type { ToolHandler, ModelContext, Response as MctxResponse } from '@mctx-ai/mcp';
+import { T } from '@mctx-ai/mcp';
 import { d1 } from '../lib/cloudflare.js';
 import {
   getTranslation,
@@ -71,10 +71,10 @@ interface WordStudyResult {
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
-const wordStudy: ToolHandler = async (args, _ask?) => {
+const wordStudy: ToolHandler = async (_mctx: ModelContext, req, res: MctxResponse) => {
   await ensureInitialized();
 
-  const { book, chapter, verse, word, translation } = args as {
+  const { book, chapter, verse, word, translation } = req as {
     book: string;
     chapter: number;
     verse: number;
@@ -241,7 +241,8 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
       note,
     };
 
-    return partialResult;
+    res.send(partialResult);
+    return;
   }
 
   // 5–8. Issue all remaining queries concurrently.
@@ -347,7 +348,7 @@ const wordStudy: ToolHandler = async (args, _ask?) => {
     ...(disambiguationNote && { note: disambiguationNote }),
   };
 
-  return result;
+  res.send(result);
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
