@@ -1,6 +1,6 @@
 {
   "name": "bible-study",
-  "version": "1.11.4",
+  "version": "1.11.5",
   "description": "The best way to Build an MCP Server. Deep Bible study using semantic search, cross-references, topical search, and translation tools. 155,510 verses with 606,140 cross-references. What does the Bible say about suffering? Topical search surfaces Job as the Bible's principal witness on suffering (with explanations of why it matters and suggested starting passages), Psalms on lament, Romans on justification — whole books and narratives alongside individual verses. What is the Hebrew word behind lovingkindness in Psalm 23? Compare how KJV and WEB translate John 3:16. Trace the word grace through Paul's letters. Covers KJV, WEB, ASV, YLT, and Darby with 17,543 Strong's entries, BDB and Thayer lexicon definitions, and Nave's 5,319 topical categories.",
   "homepage": "https://github.com/mctx-ai/bible-study",
   "repository": {
